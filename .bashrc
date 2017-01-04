@@ -29,71 +29,19 @@ source $HOME/.aliases
 #export MGC_YS_TRANSCRIPT_FILE=null
 
 # gmake lv_verify   to run gui systests
-export MGC_RUN_GUI_SYSTESTS_DURING_BUILD=1
-alias calsystest='gmake lcl_exec systests lv_verify'
 
 # faster builds
 set pcount =`/user/icdet/bin/count_processors`
 export PB="-j"$pcount;
-export GMAKE_LIB_PARALLEL="-j"$pcount
-export GMAKE_EXEC_PARALLEL=-j`/home/icdet/bin/figure_gmake_exec_ness`
 
-# for regressions
-export TEST_SUITE_TOP=/wv/pev_aut/rve_tot/calibre
-
-export MGC_HOME=/wv/icdet/work_areas/d_top_last/ic/ic_superproj/aoi/Mgc_home
-export LM_LICENSE_FILE="1717@wv-lic-01:1717@wv-lic-02:1717@wv-lic-03:1717@wv-lic-04:1717@wv-lic-05:1700@pevlic:1700@pevlic4:1700@pevlic2"
-
-export CALIBRE_ENABLE_QT_RVE=17910110
-export CALIBRE_ENABLE_CI_XACT=1009968
-
-alias tkrve='$MGC_HOME/bin/calibre -rve'
-alias qtrve='$MGC_HOME/bin/calibre -rve -qt'
-alias drc='$MGC_HOME/bin/calibre -gui -drc'
-alias xact='$MGC_HOME/bin/calibre -gui -xact'
-alias cixact='$MGC_HOME/bin/calibre -gui -xact'
-
-#Windows 7 VM
-alias win7='rdesktop -d mgc -u dbridgew -a 16 -f orw-drake-7vm -r sound:local -r disk:USB=/scratch1 -r clipboard:PRIMARYCLIPBOARD -x lan -g 1590x1130'
-
-alias rve_regr='/wv/pev_aut/rve_tot/calibre/.env/gui/bin/rve_regr'
-
-alias repo='cd /wv/rve_regr_results/dbridgew/calibre/rve/rve-drc-qt/suite-drc-rve/ ; la'
-
-export CVSROOT=':pserver:calcvs:/cvs/qa'
-
-#squish specific
-alias rveqatst='rsh -l rveqatst localhost'
-alias rve_regr='/wv/pev_aut/rve_tot/calibre/.env/gui/bin/rve_regr'
-alias squishide='/home/rveqatst/squish-5.0.0-qt47x-linux64/bin/squishide &'
-export DESIGN_DIR="/user/pev/qa/qa_data_dir"
-
-alias vncs='vncserver -alwaysshared -geometry 1590x1050'
-alias vncv='vncviewer calintern2:1'
-alias vncC2022="vncserver -geometry 1200x925 -depth 24  -alwaysshared"
-alias vncC2040="vncserver -geometry 1200x950 -depth 24 -alwaysshared"
-alias vncC2042="vncserver -geometry 1500x825 -depth 24 -alwaysshared"
-
-alias vnc0='/wv/grayburn/local/aoi/bin/x11vnc'
-
-source /wv/icdet/bin/detalias.bsh
-
-set VCO=`/usr/mgc/bin/mgcvco`
-export PATH="/usr/local/bin:/usr/bin:/usr/mgc/bin:/user/tjackson/bin/${VCO}:/user/tjackson/bin:/user/pevtools/bin:/user/pevtools/$VCO/bin:/wv/icdet/bin:/usr/local/bin:/usr/opt/bin:/bin:/usr/bin/X11:/usr/contrib/bin"
+export PATH="/usr/local/bin:/usr/bin"
 
 
-alias fds='find ./Dsrc/ -name "*.[Cc]" -o -name "*.cxx" -o -name "*.cpp" -o -name "*.[hH]" -o -name "*.hxx" -o -name "*.tcl" -o -name "*.tk" -o -name "*.png" -o -name "*.gif" -o -name "*.ui" -o -name "*.qml" -o -name "*.qrc" '
-alias qtcreator='/wv/iit/qtcreator/aoi/bin/qtcreator.sh'
-
-# So that compilation of calibre take less time by using multicore
-export GMAKE_LIB_PARALLEL=-j2
-export GMAKE_EXEC_PARALLEL=-j2
 ##==========================================================================
 # Aliases
 #===========================================================================
 
 #alias python='python3'
-alias svn='python2 /home/dbridgew/bin/svn-color/svn-color.py'
 alias sbrc='source ~/.bashrc'
 alias vi='vim'
 alias rm='rm -i'
@@ -107,7 +55,6 @@ alias h='history'
 alias j='jobs -l'
 alias which='type -a'
 alias ..='cd ..'
-alias libpath='echo -e ${LD_LIBRARY_PATH//:/\\n}'
 alias print='/usr/bin/lp -o nobanner -d $LPDEST'
             # Assumes LPDEST is defined (default printer)
 alias pjet='enscript -h -G -fCourier9 -d $LPDEST'
