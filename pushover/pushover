@@ -1,0 +1,96 @@
+#!/usr/mgc/peteoss/bin/python3
+
+import argparse
+import http.client, urllib
+
+debug = True
+
+BIG_APP_TOKEN = "ahx6uhtiu6dsvc9i7bny8onnb183n6"
+
+user_keys = {'mcampos': 'u8dELJEj8g1UG1h3NowAWrTVBXVzhH',
+             'dbridgew': 'uH9CyuCVN8fujxxE1MFayPJQVcMMo4'}
+
+parser = argparse.ArgumentParser(description='Watch Send Pushover.net notifications using the "BIG" application')
+subparser = parser.add_subparsers(dest='subparser_name')
+
+sp_send = subparser.add_parser("send")
+sp_send.add_argument("-u", "--user", required=True, nargs='+', metavar='USER_KEY', help="Pushover recipient's user key")
+sp_send.add_argument("-t", "--title", help="Notification title")
+sp_send.add_argument("-m", "--message", required=True, help="Notification body")
+sp_send.add_argument("-p", "--priority", help="Notification priority", type=int, choices=range(-2, 2))
+sp_send.add_argument("--url", help="Notification supplementary URL")
+sp_send.add_argument('-app_token', help="application token to send message to default is BIG app by Max", default=BIG_APP_TOKEN)
+sp_send.add_argument("-s", "--sound", help="Notification sound", choices=[
+    'pushover',
+    'bike',
+    'bugle',
+    'cashregister',
+    'classical',
+    'cosmic',
+    'falling',
+    'gamelan',
+    'incoming',
+    'intermission',
+    'magic',
+    'mechanical',
+    'pianobar',
+    'siren',
+    'spacealarm',
+    'tugboat',
+    'alien',
+    'climb',
+    'persistent',
+    'echo',
+    'updown',
+    'none'])
+
+
+def post(content):
+    if debug:
+        print("""
+    Request parameters:
+    {params}
+    """.format(params=content))
+
+    conn = http.client.HTTPSConnection("api.pushover.net")
+    conn.request("POST", "/1/messages.json",
+                 urllib.parse.urlencode(content),
+                 {"Content-type": "application/x-www-form-urlencoded"})
+
+    resp = conn.getresponse()
+
+    response_str = """
+    Status: {status} {reason}
+    Response Headers:
+    {headers}
+
+    Response Body:
+    {body}
+    """.format(status=resp.status, reason=resp.reason, headers=resp.getheaders(), body=resp.read())
+
+    if resp.status != 200:
+        display_response = True
+        print("Pushover returned error response:\n{response}".format(response=response_str))
+        exit(1)
+    elif debug:
+        print("Response:\n{response}".format(response=response_str))
+
+
+def send():
+    for user in args.user:
+        post_content = {}
+        for key, val in vars(args).items():
+            if key == 'user':
+                post_content['user'] = user_keys[user]
+            elif key == 'subparser_name':
+                pass
+            elif val:
+                post_content[key] = val
+        post(post_content)
+
+
+args = parser.parse_args()
+if args.subparser_name == 'send':
+    send()
+else:
+    raise NotImplementedError("No other supported features yet. ")
