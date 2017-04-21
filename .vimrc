@@ -116,7 +116,6 @@ map <F10> <Esc>:WC<CR>
 autocmd syntax * SpaceHi
 
 "Autocommand for indent settings
-  au FileType matlab setl tabstop=2 shiftwidth=2 expandtab
   au FileType html setlocal shiftwidth=2 tabstop=2 expandtab
   au FileType python setl shiftwidth=4 sts=0 tabstop=4 expandtab
 

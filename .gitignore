@@ -9,4 +9,5 @@ __pycache__/
 # linux specific
 .directory
 .vim
+.config
 
