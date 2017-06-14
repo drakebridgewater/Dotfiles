@@ -170,3 +170,5 @@ bindkey "e[H" beginning-of-line
 bindkey "e[F" end-of-line
 # completion in the middle of a line
 bindkey '^i' expand-or-complete-prefix
+
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh

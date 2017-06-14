@@ -247,3 +247,5 @@ if [ "$TERM" != "dumb" ]; then
     alias dir='ls --color=auto --format=long'
 fi
 
+
+[ -f ~/.fzf.bash ] && source ~/.fzf.bash
