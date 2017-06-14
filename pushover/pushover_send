@@ -1,0 +1,61 @@
+#!/usr/mgc/peteoss/bin/python3
+
+# $Id: pushover_send,v 1.2 2017/02/24 01:34:51 mcampos Exp $
+
+import argparse
+import requests
+from logging import debug, info, error
+
+user_keys = {'mcampos': 'u8dELJEj8g1UG1h3NowAWrTVBXVzhH',
+             'dbridgew': 'uH9CyuCVN8fujxxE1MFayPJQVcMMo4'}
+
+parser = argparse.ArgumentParser(description='Watch Send Pushover.net notifications using the "BIG" application')
+parser.add_argument("-u", "--user", required=True, metavar='USER_KEY', help="Pushover recipient's user key")
+parser.add_argument("-t", "--title", help="Notification title")
+parser.add_argument("-m", "--message", required=True, help="Notification body")
+parser.add_argument("-p", "--priority", help="Notification priority", type=int, choices=range(-2, 2))
+parser.add_argument("--url", help="Notification supplementary URL")
+parser.add_argument("-s", "--sound", help="Notification sound", choices=[
+    'pushover', 
+    'bike',
+    'bugle',
+    'cashregister',
+    'classical',
+    'cosmic',
+    'falling',
+    'gamelan',
+    'incoming',
+    'intermission',
+    'magic',
+    'mechanical',
+    'pianobar',
+    'siren',
+    'spacealarm',
+    'tugboat',
+    'alien',
+    'climb',
+    'persistent',
+    'echo',
+    'updown',
+    'none'])
+
+
+args = parser.parse_args()
+
+# Handle "-u mcampos"
+if args.user in user_keys:
+    args.user = user_keys[args.user]
+
+post_content = {"token": "avx5GUSpGLLZytLTPdqGkqKuXTcbc9"}  # max_campos@mentor.com, "BIG" application
+
+# Only pass through parameters that the user actually specified.
+for key, val in vars(args).items():
+    if val:
+        post_content[key] = val
+
+resp = requests.post("https://api.pushover.net/1/messages.json", data=post_content)
+
+if resp.status_code != 200:
+    error("Non-200 status code.  Resp={resp.status_code} {resp.reason}: {resp.text}".format(resp=resp))
+    exit(1)
+
