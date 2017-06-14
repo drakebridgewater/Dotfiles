@@ -1,0 +1,35 @@
+#!/usr/mgc/peteoss/bin/python3
+import pymysql
+import time
+
+chunk = 20000
+conn = pymysql.connect(host='localhost', user='root', password='', db='mars_grid_status_test')
+
+lower = 120879981
+
+try:
+    with conn.cursor() as cursor:
+        # Create a new record
+        while 1:
+            sql = "Select Job_ID from acct_records WHERE Job_ID > {l_limit} order by Job_ID limit {count}".format(l_limit=lower, count=chunk)
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            if not result:
+                break
+
+            starting_rec, ending_rec = result[0][0], result[-1][0]
+
+            t0 = time.time()
+
+            sql = "Update acct_records set ru_wallclock = End_Time - Start_Time WHERE Job_ID BETWEEN %s and %s " \
+                  "and End_Time >= Start_Time and End_Time < %s and Start_Time < %s " \
+                  "and ru_wallclock = %s"
+            cursor.execute(query=sql, args=(starting_rec, ending_rec, 9223372036854775807, 9223372036854775807, 0))
+            conn.commit()
+            print("Processed records with Job_ID range of: {}-{} in {} seconds".format(starting_rec, ending_rec, time.time() - t0))
+
+            lower = ending_rec
+finally:
+    conn.close()
+
+
