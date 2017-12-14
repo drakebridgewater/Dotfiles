@@ -3,9 +3,9 @@ import pymysql
 import time
 
 chunk = 20000
-conn = pymysql.connect(host='localhost', user='root', password='', db='mars_grid_status_test')
-
-lower = 120879981
+conn = pymysql.connect(host='pevdb', user='mars_grid_status',
+        password='YOUR_MYSQL_PASSWORD_HERE', db='mars_grid_status')
+lower = 0
 
 try:
     with conn.cursor() as cursor:
