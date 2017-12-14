@@ -58,6 +58,58 @@ COMPLETION_WAITING_DOTS="true"
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
 
+
+# Check network settings
+ ping -c 1 8.8.8.8 > /dev/null 2>&1
+ connected=$?
+ if [ $connected -eq 0 ]
+ then
+     export EXT=`curl -s http://whatismyip.akamai.com/ -m 3`
+     export HIP=`dig +short mobkilla.no-ip.biz @8.8.8.8`
+ else
+     echo "Network Unreachable"
+     export EXT=0
+     export HIP=2
+ fi
+
+#------------------------------------------
+#------WELCOME MESSAGE---------------------
+# customize this first message with a message of your choice.
+# this will display the username, date, time, a calendar, the amount of users, and the up time.
+clear
+# Gotta love ASCII art with figlet
+if which figlet > /dev/null 2>&1; then
+    figlet "Welcome, $NICKNAME";
+fi
+echo -e ""
+echo -ne "Today is "; date
+echo -e ""
+if [ -e $HOME/bin/intro ]; then
+    if [ -e $HOME/.intro_cache ];then
+        if test `find "$HOME/.intro_cache" -mmin +15` 2>&1 > /dev/null
+        then
+            #echo "new"
+            if [ $connected -eq 0 ]  # Connected to the internet
+            then
+                $HOME/bin/intro | tee $HOME/.intro_cache
+            fi
+        else
+            #echo "old"
+            cat $HOME/.intro_cache
+        fi
+    else
+        if [ $connected -eq 0 ]; then
+            $HOME/bin/intro | tee $HOME/.intro_cache
+        fi
+    fi
+else
+    echo -e "";  cal | grep --color -EC6 "\b$(date +%e | sed "s/ //g")" ;
+fi
+echo -ne "Up time:";uptime | awk /'up/'
+echo "";
+echo "You are on $HOST"
+
+
 # Which plugins would you like to load? (plugins can be found in ~/.oh-my-zsh/plugins/*)
 # Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
@@ -74,10 +126,10 @@ PATH=${PATH}:$HOME/bin/$VCO
 PATH=${PATH}:$HOME/tools/$VCO/bin
 PATH=${PATH}:/bin
 PATH=${PATH}:/sbin
+PATH=${PATH}:/usr/local/bin
 PATH=${PATH}:/usr/bin
 PATH=${PATH}:/usr/sbin
 PATH=${PATH}:/usr/X11R6/bin
-PATH=${PATH}:/usr/local/bin
 PATH=${PATH}:/usr/local/sbin
 PATH=${PATH}:/usr/mgc/bin
 PATH=${PATH}:/usr/mgc/peteoss/bin
