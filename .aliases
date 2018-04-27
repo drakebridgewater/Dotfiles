@@ -10,6 +10,9 @@ alias latestbuildtag='echo `\ls -l /wv/icdet/work_areas/latest_ube | field 11 | 
 # really no reason to type it all out
 alias calibre='$MGC_HOME/bin/calibre'
 
+# Access to siemens stuff
+alias vmware='sudo vmware-view'
+
 # easy navigation in shell for builds
 alias src='cd `pwd|sed "s/${VCO}/src/"`'
 alias vco='cd `pwd|sed "s/src/${VCO}/"`'

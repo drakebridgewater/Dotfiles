@@ -4,7 +4,7 @@ MYVCO=ixl
 MYDISPS="1"
 MYUSER=dbridgew
 MYSYSTEM=drake
-SHELL=/bin/bash   # look up user's default SHELL
+SHELL=/bin/zsh   # look up user's default SHELL
 
 #
 # No modifications needed below this line--JTS
@@ -31,8 +31,7 @@ then
    rm -rf /tmp/.X${MYDISP}-lock
    rm -rf /tmp/.X11-unix/X${MYDISP}
    rm -rf /user/${MYUSER}/.vnc/${MYSYSTEM}:${MYDISP}*
-   nohup vncserver :${MYDISP} -geometry 1680x1050 -depth 24 -alwaysshared < /dev/null > /dev/null 2>&1 &
-   -geometry 1680x1050 -alwaysshared
+   nohup vncserver :${MYDISP} -alwaysshared -geometry 1980x1080 -depth 24  < /dev/null > /dev/null 2>&1 
 fi
 
 done
