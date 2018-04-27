@@ -6,7 +6,6 @@ fi
 export ZSH=/home/dbridgew/.oh-my-zsh
 export LD_LIBRARY_PATH=/usr/local/lib
 
-
 export MARS_ENV="devel"
 export MARS_TEAM="mars_drake"
 export MARS_UNITTEST_KEYSPACE_ID="unittest_dbridgew"
@@ -125,6 +124,7 @@ PATH=$HOME/bin
 PATH=${PATH}:$HOME/bin/$VCO
 PATH=${PATH}:$HOME/tools/$VCO/bin
 PATH=${PATH}:/bin
+PATH=${PATH}:/scratch1/bin
 PATH=${PATH}:/sbin
 PATH=${PATH}:/usr/local/bin
 PATH=${PATH}:/usr/bin
@@ -183,12 +183,9 @@ source $HOME/.aliases
 export MGC_HOME=/wv/icdet/work_areas/d_top_last/ic/ic_superproj/aoi/Mgc_home
 export LM_LICENSE_FILE="1717@wv-lic-01:1717@wv-lic-02:1717@wv-lic-03:1717@wv-lic-04:1717@wv-lic-05:1700@pevlic:1700@pevlic4:1700@pevlic2"
 
-alias repo='cd /wv/rve_regr_results/dbridgew/calibre/rve/rve-drc-qt/suite-drc-rve/ ; la'
-alias rrepo='cd /wv/rve_regr_results/dbridgew/calibre/rve/realtime/drv-realtime-rve/suite-drv-realtime-rve/ ; la'
-
 export CVSROOT=':pserver:calcvs:/cvs/qa'
 
-source /wv/icdet/bin/detalias.bsh
+#source /wv/icdet/bin/detalias.bsh
 source /user/icdet/bin/calgrid.sh
 
 
