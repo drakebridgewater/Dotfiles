@@ -6,8 +6,7 @@ import argparse
 import requests
 from logging import debug, info, error
 
-user_keys = {'mcampos': 'u8dELJEj8g1UG1h3NowAWrTVBXVzhH',
-             'dbridgew': 'uH9CyuCVN8fujxxE1MFayPJQVcMMo4'}
+user_keys = {'dbridgew': 'uH9CyuCVN8fujxxE1MFayPJQVcMMo4'}
 
 parser = argparse.ArgumentParser(description='Watch Send Pushover.net notifications using the "BIG" application')
 parser.add_argument("-u", "--user", required=True, metavar='USER_KEY', help="Pushover recipient's user key")
@@ -46,7 +45,7 @@ args = parser.parse_args()
 if args.user in user_keys:
     args.user = user_keys[args.user]
 
-post_content = {"token": "avx5GUSpGLLZytLTPdqGkqKuXTcbc9"}  # max_campos@mentor.com, "BIG" application
+post_content = {"token": "akjkcsdzhasbwxfsb6ddiurtz5kvxc"}  # drake.bridgewater@gmail.com, "iamthedrake" application
 
 # Only pass through parameters that the user actually specified.
 for key, val in vars(args).items():

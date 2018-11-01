@@ -9,6 +9,7 @@ export LD_LIBRARY_PATH=/usr/local/lib
 export MARS_ENV="devel"
 export MARS_TEAM="mars_drake"
 export MARS_UNITTEST_KEYSPACE_ID="unittest_dbridgew"
+
 # Set name of the theme to load.
 # Look in ~/.oh-my-zsh/themes/
 # Optionally, if you set this to "random", it'll load a random theme each
@@ -145,6 +146,7 @@ PATH=${PATH}:/wv/cal_aws/tools/bin
 PATH=${PATH}:/user/icbuild/roundup/bin
 PATH=${PATH}:/wv/mgc/mgc_server/bin
 PATH=${PATH}:/user/peteoss/aoi/bin
+PATH=${PATH}:/home/dbridgew/local/bin
 
 # export MANPATH="/usr/local/man:$MANPATH"
 

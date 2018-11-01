@@ -32,6 +32,7 @@ export LD_LIBRARY_PATH='/usr/local/lib'
 # gmake lv_verify   to run gui systests
 export MGC_RUN_GUI_SYSTESTS_DURING_BUILD=1
 export MARS_ENV='devel'
+export MARS_UNITTEST_KEYSPACE_ID='unittest_dbridgew'
 
 # faster builds
 set pcount =`/user/icdet/bin/count_processors`
