@@ -43,9 +43,9 @@ set t_ti= t_te=
 set scrolloff=3
 
 "Spell check!!
-setlocal spell spelllang=en_us
-map <F6> <Esc>:setlocal spell spelllang=en_us<CR>
-map <F7> <Esc>:setlocal nospell<CR>
+"setlocal spell spelllang=en_us
+"map <F6> <Esc>:setlocal spell spelllang=en_us<CR>
+"map <F7> <Esc>:setlocal nospell<CR>
 
 " Plug in enabling
 if v:version >= 600
@@ -113,7 +113,7 @@ map <F10> <Esc>:WC<CR>
 " CUSTOM AUTOCMDS
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "Highlight tabs
-autocmd syntax * SpaceHi
+"autocmd syntax * SpaceHi
 
 "Autocommand for indent settings
   au FileType html setlocal shiftwidth=2 tabstop=2 expandtab
@@ -126,7 +126,7 @@ autocmd syntax * SpaceHi
 set t_Co=256
 
 " Color has to be last for some reason
-color xoria256
+"color xoria256
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " OPEN FILES IN DIRECTORY OF CURRENT FILE
