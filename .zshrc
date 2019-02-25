@@ -6,6 +6,8 @@ fi
 export ZSH=/home/dbridgew/.oh-my-zsh
 export LD_LIBRARY_PATH=/usr/local/lib
 
+unset autologout
+
 export MARS_ENV="devel"
 export MARS_TEAM="mars_drake"
 export MARS_UNITTEST_KEYSPACE_ID="unittest_dbridgew"
@@ -147,6 +149,7 @@ PATH=${PATH}:/user/icbuild/roundup/bin
 PATH=${PATH}:/wv/mgc/mgc_server/bin
 PATH=${PATH}:/user/peteoss/aoi/bin
 PATH=${PATH}:/home/dbridgew/local/bin
+PATH=${PATH}:/home/dbridgew/Dotfiles/pushover/
 
 # export MANPATH="/usr/local/man:$MANPATH"
 
@@ -189,6 +192,7 @@ export CVSROOT=':pserver:calcvs:/cvs/qa'
 
 #source /wv/icdet/bin/detalias.bsh
 source /user/icdet/bin/calgrid.sh
+export GRID_SRC=`source /wv/calgrid/sge/default/common/settings.sh`
 
 
 # So that compilation of calibre take less time by using multicore

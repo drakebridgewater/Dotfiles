@@ -1,7 +1,7 @@
 " drake bridgewater (not copyrighted, feel free to steal any of it)
 
 " Put swap file in this direcory
-set directory=~/tmp/vim_cache
+set directory=~/.vim-swap/
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " BASIC EDITING CONFIGURATION
@@ -118,6 +118,8 @@ map <F10> <Esc>:WC<CR>
 "Autocommand for indent settings
   au FileType html setlocal shiftwidth=2 tabstop=2 expandtab
   au FileType python setl shiftwidth=4 sts=0 tabstop=4 expandtab
+  filetype plugin indent on
+  autocmd FileType yaml setl indentkeys-=<:>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " COLOR

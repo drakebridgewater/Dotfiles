@@ -23,6 +23,8 @@ alias cws='cwa; src'
 alias vncserver='/usr/bin/vncserver -depth 16 -geometry 1680x1050 -alwaysshared'
 
 alias cqlsh='/usr/mgc/peteoss/bin/cqlsh -u root cassandra-01 --cqlversion 3.4.0 -k mars_devel_unittest'
+alias cqlsh='/usr/bin/cqlsh -u root orw-cassdev1-r7 --cqlversion 3.4.0 -k mars_devel_dbridgew'
+alias cqlsh-prod='/usr/bin/cqlsh -u root cassandra-01 --cqlversion 3.4.0 -k reaper'
 
 alias vncviewer='vncviewer -Shared '
 alias pycharm='/home/mars_tools/pycharm/bin/pycharm.sh &'
