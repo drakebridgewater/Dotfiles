@@ -31,7 +31,7 @@ then
    rm -rf /tmp/.X${MYDISP}-lock
    rm -rf /tmp/.X11-unix/X${MYDISP}
    rm -rf /user/${MYUSER}/.vnc/${MYSYSTEM}:${MYDISP}*
-   nohup vncserver :${MYDISP} -alwaysshared -geometry 1980x1080 -depth 24  < /dev/null > /dev/null 2>&1 
+   nohup vncserver :${MYDISP} -alwaysshared -geometry 3840x2160 -depth 32  < /dev/null > /dev/null 2>&1
 fi
 
 done
