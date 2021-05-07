@@ -1,5 +1,6 @@
 alias run_regressions='/home/tjackson/bin/lvsreg_wrapper.sh'
 
+alias glances='/wv/dbridgew/Projects/python_venv/bin/glances'
 # making DWAs
 alias mktot='newestdwa \!* && ( rm -f ~/work/calibre\!*; (cd ~/work; ln -s calibre_`latestbuildtag`\!* calibre\!*))'
 
@@ -102,9 +103,9 @@ alias tree='tree -Csu'     # nice alternative to 'recursive ls'
 alias cpssh="pssh -H cassandra-01 -H cassandra-02 -H cassandra-03 -l root -Ai"
 alias tail-mars-logs="pssh -H orw-mars01-rh7 -H amy-mars01-rh7 -H ies-mars01-rh7 -l dbridgew -PAi 'tail -F /var/log/mars/*.log'"
 
-alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_status, result:.result, content:.content}]'"
-
+alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_status, error_code:.error_code, error_message:.error_message, result:.result, content:.content}]'"
 # Improve the mysql prompt
+
 export MYSQL_PS1="\u@\h [\d]> "
 
 # List all the open connection to vnc

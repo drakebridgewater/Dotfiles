@@ -58,7 +58,7 @@ set directory=~/.vim-swap/
 syntax on
 
 " Toggle line counter on/off
-set number
+set number relativenumber
 
 " Don't allow mouse to select line numbers when copying
 se mouse+=a

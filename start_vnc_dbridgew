@@ -1,21 +1,12 @@
 #!/bin/sh
 
 MYVCO=ixl
-MYDISPS="1"
+MYDISPS="1 2"
 MYUSER=dbridgew
 MYSYSTEM=drake
-SHELL=/bin/zsh   # look up user's default SHELL
+#SHELL=/bin/zsh   # look up user's default SHELL
 
-#
-# No modifications needed below this line--JTS
-#
-# Crontab looks like (without the leading '#' of course):
-# */5 * * * * /scratch1/start_vnc_shallman > /dev/null 2>&1
-#
-#
-
-#
-export SHELL
+# export SHELL
 
 if [ -f $HOME/.profile ]
 then
@@ -31,7 +22,7 @@ then
    rm -rf /tmp/.X${MYDISP}-lock
    rm -rf /tmp/.X11-unix/X${MYDISP}
    rm -rf /user/${MYUSER}/.vnc/${MYSYSTEM}:${MYDISP}*
-   nohup vncserver :${MYDISP} -alwaysshared -geometry 3840x2160 -depth 32  < /dev/null > /dev/null 2>&1
+   nohup vncserver :${MYDISP} -alwaysshared -geometry 3840x2160  < /dev/null > /dev/null 2>&1
 fi
 
 done
