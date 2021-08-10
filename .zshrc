@@ -5,6 +5,10 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+source $HOME/Dotfiles/.aliases
+source $HOME/Dotfiles/common-git-settings.sh
+source $HOME/Dotfiles/.exports
+
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
@@ -94,9 +98,6 @@ HIST_STAMPS="yyyy-mm-dd"
 
 
 JIRA_URL=http://caljira.wv.mentorg.com
-source $HOME/Dotfiles/.aliases
-source $HOME/Dotfiles/.exports
-source $HOME/Dotfiles/common-git-settings.sh
 
 bgnotify_threshold=30  ## set your own notification threshold
 function bgnotify_formatted {
@@ -114,13 +115,13 @@ plugins=( )
 plugins+=( git-escape-magic )
 plugins+=( bgnotify )
 plugins+=( ansible )
-plugins+=( sudo )
-plugins+=( jira )
+#plugins+=( sudo )
+#plugins+=( jira )
 plugins+=( pip )
 plugins+=( zsh-256color )
 plugins+=( forgit  )
 plugins+=( shrink-path )
-plugins+=( ssh-agent )
+#plugins+=( ssh-agent )
 #plugins+=( term_tab )
 
 # Not working...
