@@ -1,72 +1,10 @@
-alias run_regressions='/home/tjackson/bin/lvsreg_wrapper.sh'
-
-alias glances='/wv/dbridgew/Projects/python_venv/bin/glances'
-# making DWAs
-alias mktot='newestdwa \!* && ( rm -f ~/work/calibre\!*; (cd ~/work; ln -s calibre_`latestbuildtag`\!* calibre\!*))'
-
-#original
-alias field='awk '\''{print $\!:1;}'\'''
-alias latestbuildtag='echo `\ls -l /wv/icdet/work_areas/latest_ube | field 11 | sed "s|/||"`'
-
-# really no reason to type it all out
-alias calibre='$MGC_HOME/bin/calibre'
-
-# Access to siemens stuff
-alias vmware='sudo vmware-view'
-
-# easy navigation in shell for builds
-alias src='cd `pwd|sed "s/${VCO}/src/"`'
-alias vco='cd `pwd|sed "s/src/${VCO}/"`'
-alias cwa='cd ${CWA}'
-alias cws='cwa; src'
-
-# sharing is good
-alias vncserver='/usr/bin/vncserver -depth 16 -geometry 1680x1050 -alwaysshared'
-
-alias cqlsh='/usr/mgc/peteoss/bin/cqlsh -u root orw-cassdev1-r7 --cqlversion 3.4.0 -k mars_devel_dbridgew'
-alias cqlsh-prod='/usr/mgc/peteoss/bin/cqlsh -u root cassandra-04 --cqlversion 3.4.0 -k reaper'
-
-alias vncviewer='vncviewer -Shared '
-alias pycharm='/home/mars_tools/pycharm/bin/pycharm.sh &'
-alias subl='/usr/local/sublime_text_3/sublime_text'
-alias sb='/usr/local/sublime_text_3/sublime_text'
-
-alias qtcreator='/wv/iit/qtcreator/aoi/bin/qtcreator.sh'
-
-
-#################
-alias getinfo='rsh berlin /sysadm/local/getinfo -all -us'
-alias tkrve='$MGC_HOME/bin/calibre -rve'
-alias qtrve='$MGC_HOME/bin/calibre -rve -qt'
-alias drc='$MGC_HOME/bin/calibre -gui -drc'
-alias xact='$MGC_HOME/bin/calibre -gui -xact'
-alias cixact='$MGC_HOME/bin/calibre -gui -xact'
-alias designrev='$MGC_HOME/bin/calibredrv -m /net/sarod/scratch1/probemodMultCell/probemod.gds -rve /net/sarod/scratch1/probemodMultCell/probemod.drc.results'
-alias rtrve='$MGC_HOME/bin/calibredrv -m /net/sarod/scratch1/probemodMultCell/probemod.gds'
-alias mpower='export PGA_POWER_BETA_ENABLE=729340 ; export MGC_HOME=/wv/icdet/work_areas/2014.09.15.calibreube.monday/ic/ic_superproj/aoi/Mgc_home ; $MGC_HOME/bin/pga_ui'
-
-#Windows 7 VM
-alias win7='rdesktop -d mgc -u dbridgew -a16 -f -x 0x8F -r clipboard:PRIMARYCLIPBOARD -g 1590x1130 orw-drake-7vm -r sound:local'
-alias win7l='rdesktop -d mgc -u dbridgew -a16 -f -x 0x8F -r clipboard:PRIMARYCLIPBOARD -g 1900x1180 orw-drake-7vm -r sound:local'
-
-export CVSROOT=':pserver:calcvs:/cvs/qa'
-
-alias vncs='vncserver -alwaysshared -geometry 1590x1050'
-alias vncv='vncviewer drake:1'
-alias vncC2022="vncserver -geometry 1200x925 -depth 24  -alwaysshared"
-alias vncC2040="vncserver -geometry 1200x950 -depth 24 -alwaysshared"
-alias vncC2042="vncserver -geometry 1500x825 -depth 24 -alwaysshared"
-alias vnc0='/wv/grayburn/local/aoi/bin/x11vnc'
-
-alias fds='find ./Dsrc/ -name "*.[Cc]" -o -name "*.cxx" -o -name "*.cpp" -o -name "*.[hH]" -o -name "*.hxx" -o -name "*.tcl" -o -name "*.tk" -o -name "*.png" -o -name "*.gif" -o -name "*.ui" -o -name "*.qml" -o -name "*.qrc" '
-
-alias jq="~/Dotfiles/jq"
-
+# alias glances='/wv/dbridgew/Projects/python_venv/bin/glances'
 
 alias vi='vim'
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
+
 # -> Prevents accidentally clobbering files.
 alias mkdir='mkdir -p'
 alias encoding='file -bi'
@@ -75,14 +13,12 @@ alias h='history'
 alias j='jobs -l'
 alias which='type -a'
 alias ..='cd ..'
-alias libpath='echo -e ${LD_LIBRARY_PATH//:/\\n}'
+
 
 alias du='du -kh'       # Makes a more readable output.
 alias df='df -kTh'
 
-alias dt='dmesg | tail'
 alias grep='grep --color=auto'
-export GREP_OPTIONS='--exclude-dir=CVS'
 
  #ls family
 alias ll="ls -l --group-directories-first"
@@ -100,13 +36,12 @@ alias tree='tree -Csu'     # nice alternative to 'recursive ls'
 
 
 # special ones
-alias cpssh="pssh -H cassandra-01 -H cassandra-02 -H cassandra-03 -l root -Ai"
-alias tail-mars-logs="pssh -H orw-mars01-rh7 -H amy-mars01-rh7 -H ies-mars01-rh7 -l dbridgew -PAi 'tail -F /var/log/mars/*.log'"
+# alias cpssh="pssh -H cassandra-01 -H cassandra-02 -H cassandra-03 -l root -Ai"
+# alias tail-mars-logs="pssh -H orw-mars01-rh7 -H amy-mars01-rh7 -H ies-mars01-rh7 -l dbridgew -PAi 'tail -F /var/log/mars/*.log'"
 
 alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_status, error_code:.error_code, error_message:.error_message, result:.result, content:.content}]'"
 # Improve the mysql prompt
 
-export MYSQL_PS1="\u@\h [\d]> "
 
 # List all the open connection to vnc
 alias vnc-who=`/usr/sbin/lsof -Pni | grep Xvnc | grep -v LISTEN`
