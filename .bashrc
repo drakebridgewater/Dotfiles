@@ -20,44 +20,6 @@ export TERM='rxvt'
 
 eval $( dircolors -b $HOME/.config/LS_COLORS )
 
-##=========================================================================
-# Mentor Graphics
-#==========================================================================
-source $HOME/.aliases
-
-export LD_LIBRARY_PATH='/usr/local/lib'
-# enable cout in RVE
-#export MGC_YS_TRANSCRIPT_FILE=null
-
-# gmake lv_verify   to run gui systests
-export MGC_RUN_GUI_SYSTESTS_DURING_BUILD=1
-export MARS_ENV='devel'
-export MARS_UNITTEST_KEYSPACE_ID='unittest_dbridgew'
-
-# faster builds
-set pcount =`/user/icdet/bin/count_processors`
-export PB="-j"$pcount;
-export GMAKE_LIB_PARALLEL="-j"$pcount
-export GMAKE_EXEC_PARALLEL=-j`/home/icdet/bin/figure_gmake_exec_ness`
-
-# for regressions
-export TEST_SUITE_TOP=/wv/pev_aut/rve_tot/calibre
-
-export MGC_HOME=/wv/icdet/work_areas/d_top_last/ic/ic_superproj/aoi/Mgc_home
-export LM_LICENSE_FILE="1717@wv-lic-01:1717@wv-lic-02:1717@wv-lic-03:1717@wv-lic-04:1717@wv-lic-05:1700@pevlic:1700@pevlic4:1700@pevlic2"
-
-export CALIBRE_ENABLE_QT_RVE=17910110
-export CALIBRE_ENABLE_CI_XACT=1009968
-export CALIBRE_REALTIME_RVE_ENABLE=101314
-export CVSROOT=':pserver:calcvs:/cvs/qa'
-set VCO=`/usr/mgc/bin/mgcvco`
-export PATH="/user/peteoss/bin:/user/peteoss/$VCO/bin:/user/pete/bin:user/pete/$VCO/bin:/usr/local/bin:/usr/bin:/usr/mgc/bin:/wv/icdet/bin:/usr/opt/bin:/bin:/usr/bin/X11:/usr/contrib/bin:/user/icdet/bin:/usr/mgc/bin:/user/pevtools/aoi/bin:~/bin:$HOME/local/bin:./"
-
-
-# So that compilation of calibre take less time by using multicore
-export GMAKE_LIB_PARALLEL=-j2
-export GMAKE_EXEC_PARALLEL=-j2
-
 #==========================================================================
 # Some general settings
 #===========================================================================
