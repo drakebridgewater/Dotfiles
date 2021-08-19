@@ -1,5 +1,7 @@
 # Dotfiles
 
+----
+# Personal Wiki
 
 # Linux notes
 ## Output rate in terminal
