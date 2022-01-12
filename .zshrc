@@ -6,7 +6,7 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
 fi
 
 source $HOME/Dotfiles/.aliases
-source $HOME/Dotfiles/common-git-settings.sh
+#source $HOME/Dotfiles/common-git-settings.sh
 source $HOME/Dotfiles/.exports
 
 # If you come from bash you might have to change your $PATH.
@@ -16,18 +16,18 @@ source $HOME/Dotfiles/.exports
 # zmodload zsh/zprof
 
 # Path to your oh-my-zsh installation.
-export ZSH="/home/dbridgew/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-#ZSH_THEME="agnoster"
+ZSH_THEME="agnoster"
 #ZSH_THEME="terminalparty"
 #ZSH_THEME="gnzh"
 #ZSH_THEME="robbyrussell"
 
-ZSH_THEME="powerlevel10k/powerlevel10k"
+#ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
@@ -77,7 +77,7 @@ COMPLETION_WAITING_DOTS="true"
 # Uncomment the following line if you want to disable marking untracked files
 # under VCS as dirty. This makes repository status check for large repositories
 # much, much faster.
-DISABLE_UNTRACKED_FILES_DIRTY="true"
+# DISABLE_UNTRACKED_FILES_DIRTY="true"
 
 # Uncomment the following line if you want to change the command execution time
 # stamp shown in the history command output.
@@ -112,15 +112,15 @@ function bgnotify_formatted {
 
 
 plugins=( )
-plugins+=( git-escape-magic )
-plugins+=( bgnotify )
-plugins+=( ansible )
+#plugins+=( git-escape-magic )
+#plugins+=( bgnotify )
+#plugins+=( ansible )
 #plugins+=( sudo )
 #plugins+=( jira )
-plugins+=( pip )
-plugins+=( zsh-256color )
-plugins+=( forgit  )
-plugins+=( shrink-path )
+#plugins+=( pip )
+#plugins+=( zsh-256color )
+#plugins+=( forgit  )
+#plugins+=( shrink-path )
 #plugins+=( ssh-agent )
 #plugins+=( term_tab )
 
@@ -128,8 +128,8 @@ plugins+=( shrink-path )
 #plugins+=( zsh-autocomplete )
 
 # The best history plugin
-plugins+=( history-search-multi-word )
-zstyle :plugin:history-search-multi-word reset-prompt-protect 1
+#plugins+=( history-search-multi-word )
+#zstyle :plugin:history-search-multi-word reset-prompt-protect 1
 
 #plugins+=( tmux )
 
@@ -148,15 +148,15 @@ zbell_duration=60
 # 							Defaults to %shell.
 # ZSH_TMUX_AUTO_TITLE_IDLE_DELAY		Delay, in seconds, before the idle text is displayed. Defaults to 1.
 ZSH_TMUX_AUTO_TITLE_SHORT=true
-plugins+=( zsh-tmux-auto-title )
+# plugins+=( zsh-tmux-auto-title )
 
 plugins+=( git )
 
 # https://github.com/unixorn/git-extra-commands
-plugins+=( git-extra-commands )
+# plugins+=( git-extra-commands )
 
 # https://github.com/supercrabtree/k
-plugins+=( k )
+# plugins+=( k )
 
 #plugins+=( fzf-tab )
 
@@ -194,7 +194,7 @@ DISABLE_AUTO_TITLE='true'
 # alias ohmyzsh="mate ~/.oh-my-zsh"
 
 # Sourced at the end, per the README
-source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+#source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 

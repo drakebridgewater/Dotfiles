@@ -1,5 +1,9 @@
 # alias glances='/wv/dbridgew/Projects/python_venv/bin/glances'
 
+pid_by_port() {
+  lsof -i -P | grep LISTEN | grep :$1
+}
+
 alias vi='vim'
 alias rm='rm -i'
 alias cp='cp -i'
@@ -23,7 +27,7 @@ alias grep='grep --color=auto'
  #ls family
 alias ll="ls -l --group-directories-first"
 alias lsd="ls -Ald */"
-alias ls='ls -hF --color'  # add colors for filetype recognition
+#alias ls='ls -hF --color'  # add colors for filetype recognition
 alias la='ls -Al'          # show hidden files
 alias lx='ls -lXB'         # sort by extension
 alias lk='ls -lSr'         # sort by size, biggest last
@@ -45,3 +49,7 @@ alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_s
 
 # List all the open connection to vnc
 alias vnc-who=`/usr/sbin/lsof -Pni | grep Xvnc | grep -v LISTEN`
+
+# DAT specific aliases 
+alias tps='cd ~/Projects/truck-posting-service'
+alias tpsm='cd ~/Projects/truck-posting-models' 
