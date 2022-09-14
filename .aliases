@@ -4,6 +4,8 @@ pid_by_port() {
   lsof -i -P | grep LISTEN | grep :$1
 }
 
+alias prodkcat='kcat -P -b b-3.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092,b-2.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092,b-1.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092 -t fake.stream.trucks.posting-to-csb'
+
 alias vi='vim'
 alias rm='rm -i'
 alias cp='cp -i'

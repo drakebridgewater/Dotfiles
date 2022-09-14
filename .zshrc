@@ -5,38 +5,24 @@ if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
-source $HOME/Dotfiles/.aliases
-#source $HOME/Dotfiles/common-git-settings.sh
-source $HOME/Dotfiles/.exports
-
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
-# Add zmodload zsh/zprof at the top of your ~/.zshrc and zprof at the bottom. Then you get a profile of the startup time usage.
-# zmodload zsh/zprof
-
 # Path to your oh-my-zsh installation.
-export ZSH="$HOME/.oh-my-zsh"
+export ZSH="/Users/drakebr/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
 # to know which specific one was loaded, run: echo $RANDOM_THEME
 # See https://github.com/ohmyzsh/ohmyzsh/wiki/Themes
-ZSH_THEME="agnoster"
-#ZSH_THEME="terminalparty"
-#ZSH_THEME="gnzh"
 #ZSH_THEME="robbyrussell"
-
-#ZSH_THEME="powerlevel10k/powerlevel10k"
+ZSH_THEME="powerlevel10k/powerlevel10k"
 
 # Set list of themes to pick from when loading at random
 # Setting this variable when ZSH_THEME=random will cause zsh to load
-# a theme from this variable instead of looking in ~/.oh-my-zsh/themes/
+# a theme from this variable instead of looking in $ZSH/themes/
 # If set to an empty array, this variable will have no effect.
-#ZSH_THEME_RANDOM_CANDIDATES=( "af-magic" "agnoster" "terminalparty" "gnzh" "robbyrussell" )
-
-# Keep track of your history
-export HISTSIZE=100000 SAVEHIST=100000 HISTFILE=~/.zhistory
+# ZSH_THEME_RANDOM_CANDIDATES=( "robbyrussell" "agnoster" )
 
 # Uncomment the following line to use case-sensitive completion.
 # CASE_SENSITIVE="true"
@@ -44,11 +30,6 @@ export HISTSIZE=100000 SAVEHIST=100000 HISTFILE=~/.zhistory
 # Uncomment the following line to use hyphen-insensitive completion.
 # Case-sensitive completion must be off. _ and - will be interchangeable.
 HYPHEN_INSENSITIVE="true"
-
-function get_mars_env () {
-  if (( $MARS_ENV = prod ))
-  then echo "-->prod<--"; fi
-}
 
 # Uncomment the following line to disable bi-weekly auto-update checks.
 # DISABLE_AUTO_UPDATE="true"
@@ -60,7 +41,7 @@ function get_mars_env () {
 export UPDATE_ZSH_DAYS=13
 
 # Uncomment the following line if pasting URLs and other text is messed up.
-# DISABLE_MAGIC_FUNCTIONS=true
+# DISABLE_MAGIC_FUNCTIONS="true"
 
 # Uncomment the following line to disable colors in ls.
 # DISABLE_LS_COLORS="true"
@@ -72,6 +53,8 @@ export UPDATE_ZSH_DAYS=13
 ENABLE_CORRECTION="true"
 
 # Uncomment the following line to display red dots whilst waiting for completion.
+# Caution: this setting can cause issues with multiline prompts (zsh 5.7.1 and newer seem to work)
+# See https://github.com/ohmyzsh/ohmyzsh/issues/5765
 COMPLETION_WAITING_DOTS="true"
 
 # Uncomment the following line if you want to disable marking untracked files
@@ -85,33 +68,18 @@ COMPLETION_WAITING_DOTS="true"
 # "mm/dd/yyyy"|"dd.mm.yyyy"|"yyyy-mm-dd"
 # or set a custom format using the strftime function format specifications,
 # see 'man strftime' for details.
-HIST_STAMPS="yyyy-mm-dd"
+# HIST_STAMPS="mm/dd/yyyy"
 
 # Would you like to use another custom folder than $ZSH/custom?
 # ZSH_CUSTOM=/path/to/new-custom-folder
 
 # Which plugins would you like to load?
-# Standard plugins can be found in ~/.oh-my-zsh/plugins/*
-# Custom plugins may be added to ~/.oh-my-zsh/custom/plugins/
+# Standard plugins can be found in $ZSH/plugins/
+# Custom plugins may be added to $ZSH_CUSTOM/plugins/
 # Example format: plugins=(rails git textmate ruby lighthouse)
 # Add wisely, as too many plugins slow down shell startup.
-
-
-JIRA_URL=http://caljira.wv.mentorg.com
-
-bgnotify_threshold=30  ## set your own notification threshold
-function bgnotify_formatted {
-  ## $1=exit_status, $2=command, $3=elapsed_time
-  [ $1 -eq 0 ] && title="Success!" || title="FAILURE!"
-  bgnotify "$title -- after $3 s -->" "$2" -t 10000;
-}
-
-# SSH-Agent features
-# To enable agent forwarding support add the following to your zshrc file
-#zstyle :omz:plugins:ssh-agent agent-forwarding on
-
-
 plugins=( )
+plugins+=( git )
 #plugins+=( git-escape-magic )
 #plugins+=( bgnotify )
 #plugins+=( ansible )
@@ -119,22 +87,21 @@ plugins=( )
 #plugins+=( jira )
 #plugins+=( pip )
 #plugins+=( zsh-256color )
-#plugins+=( forgit  )
 #plugins+=( shrink-path )
 #plugins+=( ssh-agent )
 #plugins+=( term_tab )
-
-# Not working...
-#plugins+=( zsh-autocomplete )
-
-# The best history plugin
-#plugins+=( history-search-multi-word )
-#zstyle :plugin:history-search-multi-word reset-prompt-protect 1
-
 #plugins+=( tmux )
+# plugins+=( fzf-tab )
 
 zbell_duration=60
 #plugins+=( zbell )
+
+# Not working...
+# plugins+=( zsh-autocomplete )
+
+# The best history plugin
+plugins+=( history-search-multi-word )
+
 
 # https://github.com/mbenford/zsh-tmux-auto-title
 # ZSH_TMUX_AUTO_TITLE_TARGET			Sets whether the window title or the pane title should be changed. Defaults to pane.
@@ -150,22 +117,8 @@ zbell_duration=60
 ZSH_TMUX_AUTO_TITLE_SHORT=true
 # plugins+=( zsh-tmux-auto-title )
 
-plugins+=( git )
 
-# https://github.com/unixorn/git-extra-commands
-# plugins+=( git-extra-commands )
-
-# https://github.com/supercrabtree/k
-# plugins+=( k )
-
-#plugins+=( fzf-tab )
-
-# Do not expand aliases _before_ completion has finished
-# This allows to re-use completion for the aliases too
-setopt completealiases
-
-
-DISABLE_AUTO_TITLE='true'
+source $ZSH/oh-my-zsh.sh
 
 # User configuration
 
@@ -188,23 +141,52 @@ DISABLE_AUTO_TITLE='true'
 # plugins, and themes. Aliases can be placed here, though oh-my-zsh
 # users are encouraged to define aliases within the ZSH_CUSTOM folder.
 # For a full list of active aliases, run `alias`.
-#
-# Example aliases
-# alias zshconfig="mate ~/.zshrc"
-# alias ohmyzsh="mate ~/.oh-my-zsh"
 
-# Sourced at the end, per the README
-#source ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+source $HOME/Dotfiles/.aliases
+source $HOME/Dotfiles/.secrets
+#source $HOME/Dotfiles/common-git-settings.sh
+source $HOME/Dotfiles/.exports
+source $HOME/Dotfiles/.kcat-aliases
 
+### Added by Zinit's installer
+if [[ ! -f $HOME/.zinit/bin/zinit.zsh ]]; then
+    print -P "%F{33}▓▒░ %F{220}Installing %F{33}DHARMA%F{220} Initiative Plugin Manager (%F{33}zdharma/zinit%F{220})…%f"
+    command mkdir -p "$HOME/.zinit" && command chmod g-rwX "$HOME/.zinit"
+    command git clone https://github.com/zdharma/zinit "$HOME/.zinit/bin" && \
+        print -P "%F{33}▓▒░ %F{34}Installation successful.%f%b" || \
+        print -P "%F{160}▓▒░ The clone has failed.%f%b"
+fi
+
+source "$HOME/.zinit/bin/zinit.zsh"
+autoload -Uz _zinit
+(( ${+_comps} )) && _comps[zinit]=_zinit
+
+# Load a few important annexes, without Turbo
+# (this is currently required for annexes)
+zinit light-mode for \
+    zinit-zsh/z-a-rust \
+    zinit-zsh/z-a-as-monitor \
+    zinit-zsh/z-a-patch-dl \
+    zinit-zsh/z-a-bin-gem-node
+
+### End of Zinit's installer chunk
+
+# zsh-fzf-history-search
+zinit ice lucid wait'0'
+zinit light joshskidmore/zsh-fzf-history-search
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-source $ZSH/oh-my-zsh.sh
-
-# to get the profiling information
-# zprof
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
 
-# Add RVM to PATH for scripting. Make sure this is the last PATH variable change.
-export PATH="$PATH:$HOME/.rvm/bin"
+alias aws-dat-cli="aws_dat_cli"
+aws_dat_cli() { /Users/drakebr/.aws/aws-dat-cli-tool/dat-kube.sh "$@" fixed args; test -f ~/.dat_kube_config && source ~/.dat_kube_config; }
+alias aws-dat-cli="aws_dat_cli"
+
+test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh" || true
+
+
+
+# Load Angular CLI autocompletion.
+# source <(ng completion script)
