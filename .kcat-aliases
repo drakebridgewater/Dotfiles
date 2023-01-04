@@ -1,18 +1,12 @@
 
 # Non-Prod Consumers
-
 alias kcat-consumer-nprod_posting-to-csb='kcat -C -b b-3.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092,b-1.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092,b-2.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092 -t stream.trucks.posting-to-csb -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'
-
 alias kcat-consumer-nprod_csb-to-posting='kcat -C -b b-3.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092,b-1.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092,b-2.posting-kafka.hacg8k.c5.kafka.us-west-2.amazonaws.com:9092 -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'
 
 # Prod Consumers
-
 alias kcat-consumer-PROD_posting-to-csb='kcat -C -b b-3.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092 -t stream.trucks.posting-to-csb -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'
-
 alias kcat-consumer-PROD_csb-to-posting='kcat -C -b b-3.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092 -t stream.trucks.csb-to-posting -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'
 
 # Local Consumers
-
 alias kcat-consumer-local_posting-to-csb='kcat -C -b localhost:9095 -t stream.trucks.posting-to-csb -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'
-
 alias kcat-consumer-local_csb-to-posting='kcat -C -b localhost:9095 -t stream.trucks.csb-to-posting -o-3 -f "\nKey: %k\t\nValue: %s\nTimestamp: %T\tPartition: %p\tOffset: %o\n--\n"'

@@ -1,0 +1,5 @@
+
+
+alias aws-dat-cli="aws_dat_cli"
+aws_dat_cli() { /Users/drakebr/.aws/aws-dat-cli-tool/dat-kube.sh "$@" fixed args; test -f ~/.dat_kube_config && source ~/.dat_kube_config; }
+alias aws-dat-cli="aws_dat_cli"

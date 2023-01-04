@@ -49,11 +49,27 @@ brew install --cask \
   michaelvillar-timer \
   grammarly
 
-brew install glances git node awscli tmux tmuxinator kcat
+brew install \
+  glances \
+  git \
+  node \
+  awscli \
+  tmux \
+  tmuxinator \
+  kcat \
+  watch
 
 # Setup SSH Access
 # ssh-keygen -t ed25519 -C "drake.bridgewater@dat.com"
 
+# Setup shell experience
+HOME=/Users/drakebr/
+cd $HOME || exit
+git clone git@github.com:drakebridgewater/Dotfiles.git
+ln -s $HOME/Dotfiles/.zshrc .
+ln -s $HOME/Dotfiles/.p10k.zsh .
+ln -s $HOME/Dotfiles/.tmux.conf .
+ln -s $HOME/Dotfiles/.vimrc .
 
 # Install Oh My Zsh
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -64,7 +80,19 @@ bash -c "$(curl --fail --show-error --silent --location https://raw.githubuserco
 # Install NVM
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
 nvm install 14.21.2
+nvm install defaultv
 nvm alias default 14.21.2
-nvm install default
 nvm use default
+
+# Install Fuzzy Completion
+brew install fzf
+# To install useful key bindings and fuzzy completion:
+$(brew --prefix)/opt/fzf/install
+
+# Setup home and end key to work correctly (external keyboards) 
+# Source: https://medium.com/@elhayefrat/how-to-fix-the-home-and-end-buttons-for-an-external-keyboard-in-mac-4da773a0d3a2 
+mkdir -p ~/Library/KeyBindings
+cp DefaultKeyBinding.dict ~/Library/KeyBindings/DefaultKeyBinding.dict
+
+
 
