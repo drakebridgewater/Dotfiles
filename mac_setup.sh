@@ -1,19 +1,19 @@
-#!/bin/bash -x 
+#!/bin/bash -x
 # // Install Homebrew
-# /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 
 # // Add Paths for homebrew
-# echo '# Set PATH, MANPATH, etc., for Homebrew.' >> /Users/drakebr/.zprofile
-# echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/drakebr/.zprofile
-# eval "$(/opt/homebrew/bin/brew shellenv)"
+echo '# Set PATH, MANPATH, etc., for Homebrew.' >> /Users/drakebr/.zprofile
+echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/drakebr/.zprofile
+eval "$(/opt/homebrew/bin/brew shellenv)"
 
 # // Install command line tools in xcode
-# xcode-select --install
+xcode-select --install
 
 brew tap homebrew/cask-versions
 
 brew install --cask \
-  fontforge 
+  fontforge
 
 # brew install --cask slack
 
@@ -27,7 +27,6 @@ brew install --cask \
   spotify \
   zoom \
   discord \
-  alfred \
   alt-tab \
   notion \
   1password \
@@ -47,7 +46,8 @@ brew install --cask \
   mqtt-explorer \
   rapidapi \
   michaelvillar-timer \
-  grammarly
+  grammarly \
+  adoptopenjdk
 
 brew install \
   glances \
@@ -57,7 +57,8 @@ brew install \
   tmux \
   tmuxinator \
   kcat \
-  watch
+  watch \
+  graphviz
 
 # Setup SSH Access
 # ssh-keygen -t ed25519 -C "drake.bridgewater@dat.com"
@@ -89,8 +90,8 @@ brew install fzf
 # To install useful key bindings and fuzzy completion:
 $(brew --prefix)/opt/fzf/install
 
-# Setup home and end key to work correctly (external keyboards) 
-# Source: https://medium.com/@elhayefrat/how-to-fix-the-home-and-end-buttons-for-an-external-keyboard-in-mac-4da773a0d3a2 
+# Setup home and end key to work correctly (external keyboards)
+# Source: https://medium.com/@elhayefrat/how-to-fix-the-home-and-end-buttons-for-an-external-keyboard-in-mac-4da773a0d3a2
 mkdir -p ~/Library/KeyBindings
 cp DefaultKeyBinding.dict ~/Library/KeyBindings/DefaultKeyBinding.dict
 
