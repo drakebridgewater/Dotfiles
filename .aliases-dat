@@ -3,3 +3,7 @@
 alias aws-dat-cli="aws_dat_cli"
 aws_dat_cli() { /Users/drakebr/.aws/aws-dat-cli-tool/dat-kube.sh "$@" fixed args; test -f ~/.dat_kube_config && source ~/.dat_kube_config; }
 alias aws-dat-cli="aws_dat_cli"
+
+export JFROG_USERNAME="drakebr@tcore.com"
+export JFROG_PASSWORD="AKCp8k7k5QMiGNSz3DhMZXzsxDMNJpirF8bLjwBhshy2rcohjFrgJEkpjvL4U2Mu8qPz6Fv1t"
+export JFROG_PASSWORD_BASE64="QUtDcDhrN2s1UU1pR05TejNEaE1aWHpzeERNTkpwaXJGOGJMandCaHNoeTJyY29oakZyZ0pFa3Bqdkw0VTJNdThxUHo2RnYxdA=="
