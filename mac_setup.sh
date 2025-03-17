@@ -27,9 +27,6 @@ else
   echo "Xcode command line tools already installed."
 fi
 
-# Setup Homebrew taps
-brew tap homebrew/cask-versions
-
 # Install Python
 echo "Installing Python..."
 brew install python@3.11
@@ -43,7 +40,6 @@ brew install --cask docker             # Containerization
 brew install --cask visual-studio-code # Code editor
 brew install --cask postman            # API testing
 brew install --cask rapidapi           # API testing
-brew install --cask adoptopenjdk       # Java
 brew install --cask mqtt-explorer      # MQTT testing
 
 # Productivity tools
@@ -100,7 +96,6 @@ brew install --cask spotify                   # Music streaming
 brew install --cask appcleaner                # App uninstaller
 brew install --cask obs                       # Screen recording
 brew install --cask michaelvillar-timer       # Pomodoro timer
-brew install --cask grammarly                 # Grammar checker
 brew install --cask raycast                   # Spotlight alternative
 brew install --cask 1password
 
@@ -117,7 +112,6 @@ brew install --cask notion   # Note taking
 # Terminal enhancements
 echo "Installing terminal enhancements..."
 brew install --cask warp # Modern terminal
-brew install --cask fig  # Terminal autocomplete
 
 # CLI Tools
 echo "Installing CLI tools..."
