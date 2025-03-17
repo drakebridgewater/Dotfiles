@@ -11,3 +11,4 @@ __pycache__/
 .vim
 .config
 
+.DS_Store
