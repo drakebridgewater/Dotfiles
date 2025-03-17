@@ -1,219 +1,77 @@
-" drake bridgewater (not copyrighted, feel free to steal any of it)
+" Clean and simplified vimrc
+" Organized for better readability and compatibility with older Vim versions
 
-set nocompatible              " be iMproved, required
-filetype off                  " required
+" ============================================================================
+" BASIC SETTINGS
+" ============================================================================
+set nocompatible              " Use Vim settings, rather than Vi settings
+filetype on                   " Enable filetype detection
+filetype plugin on            " Enable loading filetype plugins
+filetype indent on            " Enable filetype-specific indenting
 
-" set the runtime path to include Vundle and initialize
-" set rtp+=~/.vim/bundle/Vundle.vim
-" call vundle#begin()
-" alternatively, pass a path where Vundle should install plugins
-"call vundle#begin('~/some/path/here')
+" General behavior
+set hidden                    " Allow unsaved background buffers
+set history=1000              " Remember more commands and search history
+set scrolloff=3               " Keep more context when scrolling
+set mouse+=a                  " Enable mouse in all modes
+set hls                       " Highlight search results
+set ignorecase                " Case-insensitive search
+set smartcase                 " Unless search contains uppercase
+set t_ti= t_te=               " Preserve scrollback buffer
+set laststatus=2              " Always show statusline
+set shell=bash                " Use bash for shell commands
 
-" let Vundle manage Vundle, required
-" Plugin 'VundleVim/Vundle.vim'
+" Prevent swap/backup files from cluttering directories
+" Uncomment and adjust if needed
+" set directory=~/.vim/swap//
+" set backupdir=~/.vim/backup//
+" set undodir=~/.vim/undo//
 
-" The following are examples of different formats supported.
-" Keep Plugin commands between vundle#begin/end.
-" plugin on GitHub repo
-" Plugin 'tpope/vim-fugitive'
-" plugin from http://vim-scripts.org/vim/scripts.html
-" Plugin 'L9'
-" Git plugin not hosted on GitHub
-" Plugin 'git://git.wincent.com/command-t.git'
-" git repos on your local machine (i.e. when working on your own plugin)
-" Plugin 'file:///home/gmarik/path/to/plugin'
-" The sparkup vim script is in a subdirectory of this repo called vim.
-" Pass the path to set the runtimepath properly.
-" Plugin 'rstacruz/sparkup', {'rtp': 'vim/'}
-" Install L9 and avoid a Naming conflict if you've already installed a
-" different version somewhere else.
-" Plugin 'ascenator/L9', {'name': 'newL9'}
+" ============================================================================
+" FILE TYPE SPECIFIC SETTINGS
+" ============================================================================
+" Indentation settings
+autocmd FileType html setlocal shiftwidth=2 tabstop=2 expandtab
+autocmd FileType python setlocal shiftwidth=4 tabstop=4 expandtab
+autocmd FileType yaml setlocal indentkeys-=<:>
 
-" Custom added plugins
-" Bundle 'chase/vim-ansible-ymal'
+" ============================================================================
+" APPEARANCE
+" ============================================================================
+syntax on                     " Enable syntax highlighting
+set t_Co=256                  " Use 256 colors
 
-" All of your Plugins must be added before the following line
-" call vundle#end()            " required
+" Uncomment these if you want line numbers
+" set number                    " Show line numbers
+" set relativenumber            " Show relative line numbers
 
+" Uncomment to highlight lines longer than 80 columns
+" if exists('+colorcolumn')
+"   set colorcolumn=80
+" else
+"   autocmd BufWinEnter * let w:m2=matchadd('ErrorMsg', '\%>80v.\+', -1)
+" endif
 
-filetype plugin indent on    " required
-" To ignore plugin indent changes, instead use:
-"filetype plugin on
-"
-" Brief help
-" :PluginList       - lists configured plugins
-" :PluginInstall    - installs plugins; append `!` to update or just :PluginUpdate
-" :PluginSearch foo - searches for foo; append `!` to refresh local cache
-" :PluginClean      - confirms removal of unused plugins; append `!` to auto-approve removal
-"
-" see :h vundle for more details or wiki for FAQ
-" Put your non-Plugin stuff after this line
-
-
-" Put swap file in this direcory
-" set directory=~/.vim-swap/
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" BASIC EDITING CONFIGURATION
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Set color syntax highlighting on
-syntax on
-
-" Toggle line counter on/off
-set number relativenumber
-
-" Don't allow mouse to select line numbers when copying
-se mouse+=a
-set hls
-
-" allow unsaved background buffers and remember marks/undo for them
-set hidden
-
-" remember more commands and search history
-set history=10000
-
-" make searches case-sensitive only if they contain upper-case characters
-set ignorecase smartcase
-
-" This makes RVM work inside Vim. I have no idea why.
-set shell=bash
-
-"Mark lines over 80 columns
-"if exists('+colorcolumn')
-"  set colorcolumn=80
-"else
-"  au BufWinEnter * let w:m2=matchadd('ErrorMsg', '\%>80v.\+', -1)
-"endif
-
-" Prevent Vim from clobbering the scrollback buffer. See
-" http://www.shallowsky.com/linux/noaltscreen.html
-set t_ti= t_te=
-
-" keep more context when scrolling off the end of a buffer
-set scrolloff=3
-
-"Spell check!!
-"setlocal spell spelllang=en_us
-"map <F6> <Esc>:setlocal spell spelllang=en_us<CR>
-"map <F7> <Esc>:setlocal nospell<CR>
-
-" Plug in enabling
-if v:version >= 600
-  filetype plugin on
-  filetype indent on
-else
-  filetype on
-endif
-
-"Remove trailing whitespace upon saving
-autocmd BufWritePre * :%s/\s\+$//e
-
-set laststatus=2
-
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Omnicompletion
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-if v:version >= 700
-  set omnifunc=syntaxcomplete#Complete " override built-in C omnicomplete with C++ OmniCppComplete plugin
-  let OmniCpp_GlobalScopeSearch   = 1
-  let OmniCpp_DisplayMode         = 1
-  let OmniCpp_ShowScopeInAbbr     = 0 "do not show namespace in pop-up
-  let OmniCpp_ShowPrototypeInAbbr = 1 "show prototype in pop-up
-  let OmniCpp_ShowAccess          = 1 "show access in pop-up
-  let OmniCpp_SelectFirstItem     = 1 "select first item in pop-up
-  set completeopt=menuone,menu,longest
-endif
-
-"Super tab completion instead of C-X C-O
-if version >= 700
-  let g:SuperTabDefaultCompletionType = "<C-X><C-O>"
-  highlight   clear
-  highlight   Pmenu         ctermfg=0 ctermbg=2
-  highlight   PmenuSel      ctermfg=0 ctermbg=7
-  highlight   PmenuSbar     ctermfg=7 ctermbg=0
-  highlight   PmenuThumb    ctermfg=0 ctermbg=7
-endif
-
-" Configure tags - add additional tags here or comment out not-used ones
-set tags+=~/.vim/tags/cpp
-set tags+=~/.vim/tags/gl
-set tags+=~/.vim/tags/sdl
-set tags+=~/.vim/tags/qt4
-
-" Build tags of your own project
-map <F5> :!ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q .<CR>
-
-" Update tags (more efficient method)
-map <F4> :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q ./
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Find file word count
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-function! WC()
-    let filename = expand("%")
-    let cmd = "detex " . filename . " | wc -w | tr -d [:space:]"
-    let result = system(cmd)
-    echo result . " words"
-endfunction
-
-command WC call WC()
-map <F10> <Esc>:WC<CR>
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" CUSTOM AUTOCMDS
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Highlight tabs
-"autocmd syntax * SpaceHi
-
-"Autocommand for indent settings
-  au FileType html setlocal shiftwidth=2 tabstop=2 expandtab
-  au FileType python setl shiftwidth=4 sts=0 tabstop=4 expandtab
-  filetype plugin indent on
-  autocmd FileType yaml setl indentkeys-=<:>
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" COLOR
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-"Coloring!
-set t_Co=256
-
-" Color has to be last for some reason
-"color xoria256
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" OPEN FILES IN DIRECTORY OF CURRENT FILE
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" ============================================================================
+" KEYBOARD MAPPINGS
+" ============================================================================
+" Open files in directory of current file
 cnoremap %% <C-R>=expand('%:h').'/'<cr>
 map <leader>e :edit %%
 map <leader>v :view %%
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Md5 COMMAND
-" Show the MD5 of the current buffer
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-command! -range Md5 :echo system('echo '.shellescape(join(getline(<line1>, <line2>), '\n')) . '| md5')
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" InsertTime COMMAND
-" Insert the current time
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" (Re?)map Ctrl+S
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" Map Ctrl+S to save
 command -nargs=0 -bar Update if &modified
-			\|	if empty(bufname('%'))
-			\|		browse confirm write
-			\|	else
-			\|		confirm write
-			\|	endif
-			\|  endif
-
+            \|  if empty(bufname('%'))
+            \|      browse confirm write
+            \|  else
+            \|      confirm write
+            \|  endif
+            \|  endif
 nnoremap <silent> <C-S> :<C-u>Update<CR>
 
-""fix the backspace issue
-func Backspace()
+" Fix backspace behavior in older vim versions
+function! Backspace()
   if col('.') == 1
     if line('.')  != 1
       return  "\<ESC>kA\<Del>"
@@ -223,6 +81,68 @@ func Backspace()
   else
     return "\<Left>\<Del>"
   endif
-endfunc
-
+endfunction
 inoremap <BS> <c-r>=Backspace()<CR>
+
+" Regenerate tags
+map <F5> :!ctags -R --sort=yes --c++-kinds=+p --fields=+iaS --extra=+q .<CR>
+map <F4> :!ctags -R --languages=C++ --c++-kinds=+p --fields=+iaS --extra=+q ./<CR>
+
+" ============================================================================
+" CUSTOM COMMANDS
+" ============================================================================
+" Word count command
+function! WC()
+    let filename = expand("%")
+    let cmd = "detex " . filename . " | wc -w | tr -d [:space:]"
+    let result = system(cmd)
+    echo result . " words"
+endfunction
+command! WC call WC()
+map <F10> <Esc>:WC<CR>
+
+" MD5 hash of current buffer
+command! -range Md5 :echo system('echo '.shellescape(join(getline(<line1>, <line2>), '\n')) . '| md5')
+
+" Insert current timestamp
+command! InsertTime :normal a<c-r>=strftime('%F %H:%M:%S.0 %z')<cr>
+
+" ============================================================================
+" AUTO COMMANDS
+" ============================================================================
+" Remove trailing whitespace on save
+autocmd BufWritePre * :%s/\s\+$//e
+
+" ============================================================================
+" OMNI-COMPLETION (for Vim 7+)
+" ============================================================================
+if v:version >= 700
+  set omnifunc=syntaxcomplete#Complete
+
+  " C++ OmniCppComplete settings
+  let OmniCpp_GlobalScopeSearch = 1
+  let OmniCpp_DisplayMode = 1
+  let OmniCpp_ShowPrototypeInAbbr = 1
+  let OmniCpp_ShowAccess = 1
+  let OmniCpp_SelectFirstItem = 1
+  set completeopt=menuone,menu,longest
+
+  " SuperTab settings (if plugin is installed)
+  let g:SuperTabDefaultCompletionType = "<C-X><C-O>"
+
+  " Popup menu colors
+  highlight clear
+  highlight Pmenu ctermfg=0 ctermbg=2
+  highlight PmenuSel ctermfg=0 ctermbg=7
+  highlight PmenuSbar ctermfg=7 ctermbg=0
+  highlight PmenuThumb ctermfg=0 ctermbg=7
+endif
+
+" ============================================================================
+" TAGS
+" ============================================================================
+" Add tag files (uncomment and modify as needed)
+" set tags+=~/.vim/tags/cpp
+" set tags+=~/.vim/tags/gl
+" set tags+=~/.vim/tags/sdl
+" set tags+=~/.vim/tags/qt4

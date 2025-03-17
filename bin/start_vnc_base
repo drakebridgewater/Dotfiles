@@ -1,0 +1,53 @@
+#! /bin/sh
+
+BASE_NAME=$(basename "$0")
+VNC_DISPLAY=$(basename "$0"  | cut -f2 -d- )
+VNC_SIZE=$(basename "$0"  | cut -f3 -d- )
+echo $(basename "$0")
+
+echo "     Display: ${VNC_DISPLAY}"
+echo "Display size: ${VNC_SIZE}"
+
+if [ "${VNC_DISPLAY}" = "${BASE_NAME}" ] 
+then
+    MYDISP=1
+else
+    MYDISP=${VNC_DISPLAY}
+fi
+
+if [ "${VNC_SIZE}" = "${BASE_NAME}" ] 
+then
+    VNC_SIZE="2550x1400"
+fi
+
+MYUSER=${USER}
+MYSYSTEM=$(uname -n)
+SHELL=/bin/zsh
+REDHAT_MAJOR_VERSION=$(lsb_release -r | sed -e 's/\s//g' | cut -f2 -d: | cut -f1 -d.)
+echo "REDHAT_MAJOR_VERSION = ${REDHAT_MAJOR_VERSION}"
+
+if [ "${REDHAT_MAJOR_VERSION}" = "8" ]
+then
+    LISTEN="-listen tcp"
+else
+    LISTEN=
+fi
+
+#
+MYVCO=aoi
+PATH=${PATH}:/wv/pevtools/${MYVCO}/bin:/usr/X11R6/bin:/usr/openwin/bin
+export PATH
+export SHELL
+
+ps -fe | grep -v grep | grep ${MYUSER} | grep "Xvnc :${MYDISP} "> /dev/null 2>&1
+if [ $? -ne 0 ]
+then
+    rm -rf /tmp/.X${MYDISP}-lock
+    rm -rf /tmp/.X11-unix/X${MYDISP}
+    rm -rf /user/${MYUSER}/.vnc/${MYSYSTEM}:${MYDISP}*
+    nohup vncserver :${MYDISP} ${LISTEN} -geometry ${VNC_SIZE} -depth 24 -alwaysshared < /dev/null > /dev/null 2>&1 & 
+    sleep 1
+    echo "Started display ${MYDISP} on ${MYSYSTEM} with a size of ${VNC_SIZE}"
+else
+    echo "XXXXXXX ---- Failed to start display ${MYDISP} on ${MYSYSTEM} with a size of ${VNC_SIZE}"
+fi

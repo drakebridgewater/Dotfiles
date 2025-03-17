@@ -1,17 +1,14 @@
-# alias glances='/wv/dbridgew/Projects/python_venv/bin/glances'
-
 pid_by_port() {
   lsof -i -P | grep LISTEN | grep :$1
 }
 
-alias prodkcat='kcat -P -b b-3.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092,b-2.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092,b-1.posting-kafka.l3h319.c3.kafka.us-west-2.amazonaws.com:9092 -t fake.stream.trucks.posting-to-csb'
+# Reports your path, separated into one per line for readability
+alias ppath="echo $PATH | sed -e 's/:/\n/g'"
 
 alias vi='vim'
 alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
-
-alias python='python3'
 
 # -> Prevents accidentally clobbering files.
 alias mkdir='mkdir -p'
@@ -28,19 +25,19 @@ alias df='df -kTh'
 
 alias grep='grep --color=auto'
 
- #ls family
-alias ll="ls -l --group-directories-first"
-alias lsd="ls -Ald */"
-#alias ls='ls -hF --color'  # add colors for filetype recognition
-alias la='ls -Al'          # show hidden files
-alias lx='ls -lXB'         # sort by extension
-alias lk='ls -lSr'         # sort by size, biggest last
-alias lc='ls -ltcr'        # sort by and show change time, most recent last
-alias lu='ls -ltur'        # sort by and show access time, most recent last
-alias lt='ls -ltr'         # sort by date, most recent last
-alias lm='ls -al |more'    # pipe through 'more'
-alias lr='ls -lR'          # recursive ls
-alias tree='tree -Csu'     # nice alternative to 'recursive ls'
+# ls family
+# alias ll="ls -l --group-directories-first"
+# alias lsd="ls -Ald */"
+# #alias ls='ls -hF --color'  # add colors for filetype recognition
+# alias la='ls -Al'          # show hidden files
+# alias lx='ls -lXB'         # sort by extension
+# alias lk='ls -lSr'         # sort by size, biggest last
+# alias lc='ls -ltcr'        # sort by and show change time, most recent last
+# alias lu='ls -ltur'        # sort by and show access time, most recent last
+# alias lt='ls -ltr'         # sort by date, most recent last
+# #alias lm='ls -al |more'    # pipe through 'more'
+# alias lr='ls -lR'          # recursive ls
+# alias tree='tree -Csu'     # nice alternative to 'recursive ls'
 
 
 # special ones
@@ -52,5 +49,17 @@ alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_s
 
 
 # List all the open connection to vnc
-alias vnc-who=`/usr/sbin/lsof -Pni | grep Xvnc | grep -v LISTEN`
+alias vnc-who='lsof -Pni | grep vnc | grep -v LISTEN'
 
+# VNC
+alias vnc='vncserver -geometry 1920x1080 -depth 24 -alwaysshared -AcceptCutText=1 -SendCutText=1 -listen tcp'
+
+# Siemens EDA
+alias    calibre='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibre'
+alias calibredrv='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibredrv'
+alias  calibrewb='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibrewb'
+
+alias renew_failing='find /wv/src_renewal/ -maxdepth 2 -name BROKEN'
+alias renew_working='find /wv/src_renewal/ -maxdepth 2 -name CURRENT'
+
+alias sglu='. /user/icdet/bin/sglu.ksh'
