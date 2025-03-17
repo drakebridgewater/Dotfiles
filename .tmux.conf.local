@@ -1,0 +1,101 @@
+# Customization for Oh my tmux! (https://github.com/gpakosz/.tmux)
+# A simplified and more maintainable configuration
+
+# -- session creation ----------------------------------------------------------
+
+# Don't prompt for session name when creating a new session
+tmux_conf_new_session_prompt=false
+
+# Don't retain current path when creating a new session
+tmux_conf_new_session_retain_current_path=false
+
+# -- windows & pane creation ---------------------------------------------------
+
+# Don't retain current path when creating a new window
+tmux_conf_new_window_retain_current_path=false
+
+# Don't try to reconnect ssh sessions in new windows
+tmux_conf_new_window_reconnect_ssh=false
+
+# Retain current path when creating a new pane
+tmux_conf_new_pane_retain_current_path=true
+
+# Don't try to reconnect ssh sessions in new panes
+tmux_conf_new_pane_reconnect_ssh=false
+
+# -- display -------------------------------------------------------------------
+
+# Use auto-detection for 24-bit color support
+tmux_conf_24b_colour=auto
+
+# -- theming -------------------------------------------------------------------
+
+# Use a simpler theme with fewer colors
+tmux_conf_theme=enabled
+
+# Simplified color palette (fewer colors)
+tmux_conf_theme_colour_1="#080808"    # dark gray
+tmux_conf_theme_colour_2="#303030"    # gray
+tmux_conf_theme_colour_3="#8a8a8a"    # light gray
+tmux_conf_theme_colour_4="#00afff"    # light blue
+tmux_conf_theme_colour_5="#ffff00"    # yellow
+tmux_conf_theme_colour_6="#080808"    # dark gray
+tmux_conf_theme_colour_7="#e4e4e4"    # white
+tmux_conf_theme_colour_8="#080808"    # dark gray
+tmux_conf_theme_colour_9="#ffff00"    # yellow
+tmux_conf_theme_colour_10="#ff00af"   # pink
+tmux_conf_theme_colour_11="#4C9900"   # green
+tmux_conf_theme_colour_12="#8a8a8a"   # light gray
+tmux_conf_theme_colour_13="#e4e4e4"   # white
+tmux_conf_theme_colour_14="#080808"   # dark gray
+tmux_conf_theme_colour_15="#080808"   # dark gray
+tmux_conf_theme_colour_16="#d70000"   # red
+tmux_conf_theme_colour_17="#e4e4e4"   # white
+
+# Window style
+tmux_conf_theme_window_fg="default"
+tmux_conf_theme_window_bg="default"
+
+# Don't highlight focused pane (better for older systems)
+tmux_conf_theme_highlight_focused_pane=false
+
+# Use thin pane borders (better for older systems)
+tmux_conf_theme_pane_border_style=thin
+
+# Use simpler status line separators that work on all systems
+tmux_conf_theme_left_separator_main=""
+tmux_conf_theme_left_separator_sub="|"
+tmux_conf_theme_right_separator_main=""
+tmux_conf_theme_right_separator_sub="|"
+
+# Simplified status line content
+tmux_conf_theme_status_left=" ❐ #S "
+tmux_conf_theme_status_right=" #{prefix}#{mouse}#{pairing}#{synchronized} | %R | %d %b | #{username}#{root} | #{hostname} "
+
+# -- clipboard -----------------------------------------------------------------
+
+# Don't try to copy to OS clipboard (can be unreliable on some systems)
+# Set to true if you want this feature and have xsel/xclip installed
+tmux_conf_copy_to_os_clipboard=false
+
+# -- user customizations -------------------------------------------------------
+
+# Increase history size
+set -g history-limit 10000
+
+# Start with mouse mode enabled
+set -g mouse on
+
+# Split window vertically with backslash
+bind \\ split-window -h
+
+# -- plugins -------------------------------------------------------------------
+
+# Only install and update plugins when explicitly requested
+tmux_conf_update_plugins_on_launch=false
+tmux_conf_update_plugins_on_reload=false
+tmux_conf_uninstall_plugins_on_reload=false
+
+# Essential plugins only
+set -g @plugin 'tmux-plugins/tmux-sensible'
+set -g @plugin 'tmux-plugins/tmux-resurrect'
