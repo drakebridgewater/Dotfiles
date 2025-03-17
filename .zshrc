@@ -9,7 +9,7 @@ fi
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
 # Path to your oh-my-zsh installation.
-export ZSH="/Users/drakebr/.oh-my-zsh"
+export ZSH="$HOME/.oh-my-zsh"
 
 # Set name of the theme to load --- if set to "random", it will
 # load a random theme each time oh-my-zsh is loaded, in which case,
@@ -80,21 +80,22 @@ COMPLETION_WAITING_DOTS="true"
 # Add wisely, as too many plugins slow down shell startup.
 plugins=( )
 plugins+=( git )
-#plugins+=( git-escape-magic )
-#plugins+=( bgnotify )
+plugins+=( git-escape-magic )
+plugins+=( bgnotify )
 #plugins+=( ansible )
-#plugins+=( sudo )
+plugins+=( sudo )
 #plugins+=( jira )
-#plugins+=( pip )
-#plugins+=( zsh-256color )
-#plugins+=( shrink-path )
-#plugins+=( ssh-agent )
-#plugins+=( term_tab )
-#plugins+=( tmux )
+plugins+=( pip )
+# plugins+=( zsh-256color )
+plugins+=( shrink-path )
+plugins+=( ssh-agent )
+plugins+=( term_tab )
+plugins+=( tmux )
+plugins+=( fzf )
 # plugins+=( fzf-tab )
 
 zbell_duration=60
-#plugins+=( zbell )
+plugins+=( zbell )
 
 # Not working...
 # plugins+=( zsh-autocomplete )
@@ -167,7 +168,7 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 # Load Angular CLI autocompletion.
 # source <(ng completion script)
 
-source ~/powerlevel10k/powerlevel10k.zsh-theme
+# source ~/powerlevel10k/powerlevel10k.zsh-theme
 
 # To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
@@ -178,5 +179,4 @@ export NVM_DIR="$HOME/.nvm"
 
 [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
 
-aws_dat_cli() { /Users/drakebr/.aws/aws-dat-cli-tool/dat-kube.sh "$@" fixed args; test -f ~/.dat_kube_config && source ~/.dat_kube_config; }
-alias aws-dat-cli="aws_dat_cli"
+source ~/powerlevel10k/powerlevel10k.zsh-theme

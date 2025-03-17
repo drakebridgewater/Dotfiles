@@ -11,6 +11,8 @@ alias rm='rm -i'
 alias cp='cp -i'
 alias mv='mv -i'
 
+alias python='python3'
+
 # -> Prevents accidentally clobbering files.
 alias mkdir='mkdir -p'
 alias encoding='file -bi'
@@ -52,6 +54,3 @@ alias rest_jq="jq --raw-output  '[. | {traceback:.traceback, http_status:.http_s
 # List all the open connection to vnc
 alias vnc-who=`/usr/sbin/lsof -Pni | grep Xvnc | grep -v LISTEN`
 
-# DAT specific aliases 
-alias tps='cd ~/Projects/truck-posting-service'
-alias tpsm='cd ~/Projects/truck-posting-models' 
