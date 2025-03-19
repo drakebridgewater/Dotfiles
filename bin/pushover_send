@@ -1,0 +1,93 @@
+#!/usr/mgc/peteoss/bin/python3
+import argparse
+import os
+import requests
+from logging import debug, info, error
+
+
+# Default empty values
+PUSHOVER_APPLICATION_TOKEN = None
+USER_KEYS = {}
+
+# Try to load from config file (not in git)
+try:
+    from config import PUSHOVER_APPLICATION_TOKEN, USER_KEYS
+except ImportError:
+    # Fall back to environment variables
+    PUSHOVER_APPLICATION_TOKEN = os.environ.get('PUSHOVER_APPLICATION_TOKEN')
+    
+    # Initialize USER_KEYS dictionary
+    USER_KEYS = {}
+    pushover_users = os.environ.get('PUSHOVER_USERS', '').split(',')
+    for user in pushover_users:
+        if user and os.environ.get(f'PUSHOVER_KEY_{user}'):
+            USER_KEYS[user] = os.environ.get(f'PUSHOVER_KEY_{user}')
+
+hostname = os.uname().nodename
+
+parser = argparse.ArgumentParser(description='Watch Send Pushover.net notifications using the "BIG" application')
+user_parser = parser.add_mutually_exclusive_group(required=True)
+user_parser.add_argument("-u", "--user", metavar='USER_KEY', help="Pushover recipient's user key")
+user_parser.add_argument("--userToken", metavar='TOKEN', help="Send to specified user token")
+user_parser.add_argument("--all", action='store_true', help="Send to all users")
+parser.add_argument("-t", "--title", help="Notification title", default=f"Notification from {hostname}")
+parser.add_argument("-m", "--message", required=True, help="Notification body")
+parser.add_argument("-p", "--priority", help="Notification priority", type=int, choices=range(-2, 2), default=0)
+parser.add_argument("--url", help="Notification supplementary URL")
+parser.add_argument("-s", "--sound", help="Notification sound", choices=[
+    'pushover',
+    'bike',
+    'bugle',
+    'cashregister',
+    'classical',
+    'cosmic',
+    'falling',
+    'gamelan',
+    'incoming',
+    'intermission',
+    'magic',
+    'mechanical',
+    'pianobar',
+    'siren',
+    'spacealarm',
+    'tugboat',
+    'alien',
+    'climb',
+    'persistent',
+    'echo',
+    'updown',
+    'none'])
+
+
+args = parser.parse_args()
+
+user_token = ''
+if args.all:
+    user_token = ",".join(USER_KEYS.values())
+elif args.userToken:
+    user_token = args.userToken
+elif args.user:
+    user_token = USER_KEYS.get(args.user, args.user)
+else:
+    error("No user specified")
+    exit(1)
+
+post_content = {
+    "token": PUSHOVER_APPLICATION_TOKEN,
+    "user": user_token,
+    "message": args.message,
+    "title": args.title,
+    "priority": args.priority,
+    }
+
+# Only pass through parameters that the user actually specified.
+for key, val in vars(args).items():
+    if val:
+        post_content[key] = val
+
+resp = requests.post("https://api.pushover.net/1/messages.json", data=post_content)
+
+if resp.status_code != 200:
+    error("Non-200 status code.  Resp={resp.status_code} {resp.reason}: {resp.text}".format(resp=resp))
+    exit(1)
+
