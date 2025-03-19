@@ -89,6 +89,12 @@ set -g mouse on
 # Split window vertically with backslash
 bind \\ split-window -h
 
+# Terminal settings
+set -g default-terminal "screen-256color"
+set -sa terminal-overrides ",xterm-256color:RGB"
+set -g focus-events on
+setw -g aggressive-resize on
+
 # -- plugins -------------------------------------------------------------------
 
 # Only install and update plugins when explicitly requested
