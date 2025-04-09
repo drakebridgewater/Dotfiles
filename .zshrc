@@ -37,6 +37,7 @@ plugins=(
   sudo
   ssh-agent
   docker
+  isodate
 )
 
 source $ZSH/oh-my-zsh.sh
@@ -123,3 +124,6 @@ zinit light ogham/exa
 
 # Load p10k configuration
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+tmux-git-autofetch() {(/home/drabri2r/.tmux/plugins/tmux-git-autofetch/git-autofetch.tmux --current &)}
+add-zsh-hook chpwd tmux-git-autofetch
+    

@@ -165,6 +165,7 @@ if [ -d "$HOME/Dotfiles" ]; then
   ln -sf $HOME/Dotfiles/.zshrc .
   ln -sf $HOME/Dotfiles/.p10k.zsh .
   ln -sf $HOME/Dotfiles/.tmux.conf .
+  ln -sf $HOME/Dotfiles/.tmux.conf.local .
   ln -sf $HOME/Dotfiles/.vimrc .
 else
   echo "Warning: Dotfiles directory not found at $HOME/Dotfiles"
@@ -217,6 +218,10 @@ if [ ! -d "$HOME/powerlevel10k" ]; then
 else
   echo "Powerlevel10k already installed."
 fi
+
+# Installing Neovim
+brew install neovim
+git clone git@github.com:drakebridgewater/kickstart.nvim.git "${XDG_CONFIG_HOME:-$HOME/.config}"/nvim
 
 # Install Fuzzy Completion
 echo "Installing FZF key bindings and completion..."

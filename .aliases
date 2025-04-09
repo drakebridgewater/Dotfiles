@@ -54,12 +54,19 @@ alias vnc-who='lsof -Pni | grep vnc | grep -v LISTEN'
 # VNC
 alias vnc='vncserver -geometry 1920x1080 -depth 24 -alwaysshared -AcceptCutText=1 -SendCutText=1 -listen tcp'
 
-# Siemens EDA
-alias    calibre='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibre'
-alias calibredrv='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibredrv'
-alias  calibrewb='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibrewb'
+# Check hostname contains mentorg
+if [[ $(hostname -f) =~ 'mentorg' ]]; then
+  # Siemens EDA
+  alias    calibre='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibre'
+  alias calibredrv='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibredrv'
+  alias  calibrewb='[[ ! -d "$MGC_HOME" ]] && echo "\$MGC_HOME does not exist: $MGC_HOME" || $MGC_HOME/bin/calibrewb'
 
-alias renew_failing='find /wv/src_renewal/ -maxdepth 2 -name BROKEN'
-alias renew_working='find /wv/src_renewal/ -maxdepth 2 -name CURRENT'
+  alias renew_failing='find /wv/src_renewal/ -maxdepth 2 -name BROKEN'
+  alias renew_working='find /wv/src_renewal/ -maxdepth 2 -name CURRENT'
 
-alias sglu='. /user/icdet/bin/sglu.ksh'
+  alias sglu='. /user/icdet/bin/sglu.ksh'
+fi
+
+if command -v nvim &> /dev/null; then
+  alias vim="nvim"
+fi

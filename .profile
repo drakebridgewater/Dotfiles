@@ -32,7 +32,11 @@ PATH=${PATH}${PATH:+:}/usr/bin
 PATH=${PATH}${PATH:+:}/usr/opt/bin
 PATH=${PATH}${PATH:+:}/usr/opt/tv
 PATH=${PATH}${PATH:+:}/user/pevtools/bin
-PATH=${PATH}:${HOME}/Dotfiles/pushover/
-PATH=${PATH}:${HOME}/Dotfiles/bin/
- 
+PATH=${PATH}${PATH:+:}${HOME}/Dotfiles/pushover/
+PATH=${PATH}${PATH:+:}/Dotfiles/bin/
+
+if [ -d $HOME/neovim/bin ]; then
+    PATH=${HOME}/neovim/bin${PATH:+:}${PATH}
+fi
+
 . /user/icdet/bin/calgrid.sh
