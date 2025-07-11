@@ -178,6 +178,10 @@ bind -r C-h previous-window # select previous window
 bind -r C-l next-window     # select next window
 bind Tab last-window        # move to last active window
 
+# Fix Home and End keys
+bind-key -n Home send Escape "OH"
+bind-key -n End send Escape "OF"
+
 # toggle mouse
 bind m run "cut -c3- '#{TMUX_CONF}' | sh -s _toggle_mouse"
 

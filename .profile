@@ -7,18 +7,27 @@ if [ -n "$BASH_VERSION" ]; then
     fi
 fi
  
-eval $(/user/pete/lib/lserver_manager/lic_server_info set -sh --tools calibre,corp)
- 
 export EDITOR="/usr/bin/vim"
 export VISUAL="$EDITOR"
 export MANPATH="$MANPATH:/home/gitdet/share/man"
+
+
 export VCO=$(CALIBRE_ENABLE_AOJ_BUILDS=1 /usr/mgc/bin/mgcvco)
- 
-# setup PATH
+if [ -f /user/pete/lib/lserver_manager/lic_server_info ]; then
+    eval $(/user/pete/lib/lserver_manager/lic_server_info set -sh --tools calibre,corp)
+fi
+if [ -f ~/Dotfiles/siemens_utils ]; then
+    source ~/Dotfiles/siemens_utils
+fi
+if [ -f /user/icdet/bin/calgrid.sh ]; then
+    . /user/icdet/bin/calgrid.sh
+fi
+
+
 export PATH
-# PATH=/user/gitdet/opt/git-blame-cache/bin
+# Make sure PATH is cleared out by setting using = here
 PATH=${HOME}/bin
-# PATH=${PATH}${PATH:+:}${HOME}/bin
+# PATH=/user/gitdet/opt/git-blame-cache/bin
 PATH=${PATH}${PATH:+:}/user/gitdet/bin
 PATH=${PATH}${PATH:+:}/usr/mgc/bin
 PATH=${PATH}${PATH:+:}/usr/mgc/peteoss/bin
@@ -38,5 +47,3 @@ PATH=${PATH}${PATH:+:}/Dotfiles/bin/
 if [ -d $HOME/neovim/bin ]; then
     PATH=${HOME}/neovim/bin${PATH:+:}${PATH}
 fi
-
-. /user/icdet/bin/calgrid.sh

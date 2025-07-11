@@ -65,8 +65,20 @@ if [[ $(hostname -f) =~ 'mentorg' ]]; then
   alias renew_working='find /wv/src_renewal/ -maxdepth 2 -name CURRENT'
 
   alias sglu='. /user/icdet/bin/sglu.ksh'
+  alias d1='export DISPLAY=:1'
+  alias d2='export DISPLAY=:2'
+  alias d3='export DISPLAY=:3'
+  alias d4='export DISPLAY=:4'
+  alias d5='export DISPLAY=:5'
+
+  alias cqi='cd /home/cqi/toolsets/any'
+  alias r_cdtop='cd /home/cqi/toolsets/any/calibre-development-tools/CURRENT/bin'
+  alias r_insight='cd /wv/drabri2r_nobackup/gitlab/builds/insight-eda-wrapper'
+  alias toaster='cd /wv/toaster_builds'
+  alias cwarn='cd /wv/src_renewal'
+  alias src_renewal='cd /wv/src_renewal'
 fi
 
-if command -v nvim &> /dev/null; then
-  alias vim="nvim"
-fi
+#if command -v nvim &> /dev/null; then
+#  alias vim="nvim"
+#fi

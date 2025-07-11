@@ -1,6 +1,11 @@
 # If not running interactively, don't do anything
 [[ $- == *i* ]] || return
 
+# Warn  `SendEnv !TMUX` is not found in ssh config
+if [ -n "$SSH_CLIENT" ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config; then
+    echo "Warning: 'SendEnv !TMUX' not found in ~/.ssh/config. This may cause issues with tmux."
+fi
+
 source $HOME/Dotfiles/.profile
 
 # Enable Powerlevel10k instant prompt
