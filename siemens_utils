@@ -1,0 +1,1211 @@
+function humanReadableDurationToSeconds() {
+  # example input: 3h 2m 1s
+  local duration=$1
+  if [ -z "$duration" ]; then
+    echo "Usage: humanReadableDurationToSeconds <duration>"
+    echo "Example: humanReadableDurationToSeconds '3h 2m 1s'"
+    return 1
+  fi
+  local seconds=0
+  local hours=0
+  local minutes=0
+  local seconds=0
+  local duration_array=($duration)
+  for i in "${duration_array[@]}"; do
+    if [[ $i == *h ]]; then
+      hours=${i//h/}
+    elif [[ $i == *m ]]; then
+      minutes=${i//m/}
+    elif [[ $i == *s ]]; then
+      seconds=${i//s/}
+    fi
+  done
+  echo $((hours * 3600 + minutes * 60 + seconds))
+}
+
+function warnings_for_file() {
+  # example usage: warnings_for_file warnings.json 'perc_type.h'
+  # This function searches a getWarnings JSON file for warnings associated with a specific filename.
+  local json_file="$1"
+  local search_file="$2"
+  
+  if [ -z "$json_file" ] || [ -z "$search_file" ]; then
+    echo "Usage: find_file_in_warnings_json <json_file> <search_filename>"
+    echo "Example: find_file_in_warnings_json warnings.json 'perc_type.h'"
+    return 1
+  fi
+  
+  jq -c --arg filename "$search_file" '
+    .getWarnings[]? |
+    # Ensure we have valid structure
+    select(.events? != null and (.events | type) == "array") |
+    # Check if this build has ANY relevant warnings
+    select(
+      [.events[]? | select(type == "object")] | 
+      any(
+        .warning_type? != null and 
+        .occurrences? != null and
+        (.occurrences | type) == "array" and
+        (.occurrences | length > 0) and
+        (.occurrences | any(
+          select(type == "object" and .associated_file_name? != null) | 
+          .associated_file_name == $filename
+        ))
+      )
+    ) |
+    # Output the build command and matching events
+    {
+      build_cmd: .command.build_cmd,
+      matching_events: [
+        .events[]? | 
+        select(type == "object") |
+        select(.warning_type? != null and .occurrences? != null) |
+        select(
+          (.occurrences | type) == "array" and
+          (.occurrences | any(
+            select(type == "object" and .associated_file_name? != null) | 
+            .associated_file_name == $filename
+          ))
+        )
+      ]
+    } |
+    # Only output if we actually found matching events
+    select(.matching_events | length > 0)
+  ' "$json_file"
+}
+
+function finderror_json() {
+  local file="$1"
+  local before_lines="${2:-20}"
+  local max_distance="${3:-5000}"
+  local concat_long_lines=1
+  local concat_long_lines_length=180
+  local concat_long_lines_total=360
+
+  if [ -z "$file" ]; then
+    echo "Usage: finderror <filename> [lines_before_error] [max_distance]"
+    echo "Example: finderror logfile.log 20 1500"
+    return 1
+  fi
+
+  awk -v max_dist="$max_distance" \
+    -v before="$before_lines" \
+    -v concat_long_lines="$concat_long_lines" \
+    -v concat_long_lines_length="$concat_long_lines_length" \
+    -v concat_long_lines_total="$concat_long_lines_total" '
+    BEGIN {
+        print "["
+        error_count = 0
+    }
+    {
+        # Store each line in the circular buffer
+        if (concat_long_lines && length($0) > concat_long_lines_total) {
+            buffer[NR] = substr($0, 1, concat_long_lines_length) "<<<TRUNCATED>>>" substr($0, length($0) - concat_long_lines_length)
+        } else {
+            buffer[NR] = $0
+        }
+    }
+    /Entering directory/ {
+        # Extract just the directory path from "Entering directory" line
+        # Example input: "gmake4.2.1.exe[3]: Entering directory '/wv/path/to/dir'"
+        match($0, /Entering directory '"'"'([^'"'"']+)'"'"'/, matches)
+        if (matches[1] != "") {
+            entering_directory = matches[1]
+            entering_dir_log_line = NR
+        }
+    }
+    /-o.*\.o/ {
+        # extract only the .o part
+        match($0, /-o ([^ ]*\.o)/, cmd_matches)
+        if (cmd_matches[1] != "") {
+            last_build_cmd = cmd_matches[1]
+            last_build_cmd_log_line = NR
+        }
+    }
+    /: error: / {
+        error_count++
+        if (error_count > 1) {
+            print "    },"
+        }
+        
+        # Start error object
+        print "    {"
+        print "      \"id\": " error_count ","
+        print "      \"line\": " NR ","
+        print "      \"entering_dir_log_line\": " entering_dir_log_line ","
+        print "      \"last_build_cmd_log_line\": " last_build_cmd_log_line ","
+        print "      \"entering_directory\": \"" entering_directory "\","
+        print "      \"last_built_file\": \"" last_build_cmd "\","
+        if (before > 0) {
+          print "      \"context\": ["
+          # Print context lines as JSON array
+          context_count = 0
+          for (i = (NR - before); i < NR; i++) {
+              if (i in buffer) {
+                  if (context_count > 0) {
+                      print ","
+                  }
+                  context_count++
+                  # escape backslashes
+                  gsub(/\\/, "\\\\", buffer[i])
+                  # Escape quotes
+                  gsub(/"/, "\\\"", buffer[i])
+                  printf "          \"" buffer[i] "\""
+              }
+          }
+          print "\n      ],"
+        }
+        error_line = buffer[NR]
+        gsub(/\\/, "\\\\", error_line)
+        gsub(/"/, "\\\"", error_line)
+        print "      \"error\": \"" error_line "\""
+        # Clear old buffer entries
+        for (i in buffer) {
+            delete buffer[i]
+        }
+    }
+    /\] Error / {
+        error_count++
+        if (error_count > 1) {
+            print "    },"
+        }
+        
+        # Start error object
+        print "    {"
+        print "      \"id\": " error_count ","
+        print "      \"line\": " NR ","
+        print "      \"entering_dir_log_line\": " entering_dir_log_line ","
+        print "      \"last_build_cmd_log_line\": " last_build_cmd_log_line ","
+        print "      \"entering_directory\": \"" entering_directory "\","
+        print "      \"last_built_file\": \"" last_build_cmd "\","
+        if (before > 0) {
+          print "      \"context\": ["
+          # Print context lines as JSON array
+          context_count = 0
+          for (i = (NR - before); i < NR; i++) {
+              if (i in buffer) {
+                  if (context_count > 0) {
+                      print ","
+                  }
+                  context_count++
+                  # escape backslashes
+                  gsub(/\\/, "\\\\", buffer[i])
+                  # Escape quotes
+                  gsub(/"/, "\\\"", buffer[i])
+                  printf "          \"" buffer[i] "\""
+              }
+          }
+          print "\n      ],"
+        }
+        error_line = buffer[NR]
+        gsub(/\\/, "\\\\", error_line)
+        gsub(/"/, "\\\"", error_line)
+        print "      \"error\": \"" error_line "\""
+        # Clear old buffer entries
+        for (i in buffer) {
+            delete buffer[i]
+        }
+    }
+    END {
+        print "    }"  # Close last error object
+        print "]"  # Close main object
+    }
+    ' "$file"
+}
+
+function finderror() {
+  local file="$1"
+  local before_lines="${2:-20}"
+  local max_distance="${3:-5000}"
+  local concat_long_lines=1
+  local concat_long_lines_length=180
+  local concat_long_lines_total=360
+
+  if [ -z "$file" ]; then
+    echo "Usage: finderror <filename> [lines_before_error] [max_distance]"
+    echo "Example: finderror logfile.log 20 1500"
+    return 1
+  fi
+
+  # echo "=== Search Parameters ==="
+  # echo "File: $file"
+  # echo "Looking for: '] Error' pattern"
+  # echo "Context lines: $before_lines"
+  # echo "Max distance from directory: $max_distance"
+  # echo ""
+
+  awk -v max_dist="$max_distance" \
+    -v before="$before_lines" \
+    -v concat_long_lines="$concat_long_lines" \
+    -v concat_long_lines_length="$concat_long_lines_length" \
+    -v concat_long_lines_total="$concat_long_lines_total" '
+    {
+        # Store each line in the circular buffer
+        if (concat_long_lines && length($0) > concat_long_lines_total) {
+            buffer[NR] = substr($0, 1, concat_long_lines_length) "<<<TRUNCATED>>>" substr($0, length($0) - concat_long_lines_length)
+        } else {
+            buffer[NR] = $0
+        }
+    }
+    /Entering directory/ {
+        entry_raw=$0
+        match($0, /Entering directory '"'"'([^'"'"']+)'"'"'/, matches)
+        entry=matches[1]
+        entry_line=NR
+    }
+    # Get the last build command before the error within max_dist
+    /-o.*\.o/ {
+        # extract only the .o part
+        match($0, /-o ([^ ]*\.o)/, cmd_matches)
+        if (cmd_matches[1] != "") {
+          last_build_cmd = cmd_matches[1]
+          build_cmd_line = NR
+        }
+    }
+    /: error: / {
+        error_count++
+          printf "===================== START Error ======================= #%d @ line %d\n", error_count, NR
+          if (entry != "") {
+            printf "Entering directory (%d): %s\n", entry_line, entry
+          }
+          if (last_build_cmd != "") {
+              printf "Build Command (%d): %s\n", build_cmd_line, last_build_cmd
+          }
+          printf "---------------------------------------------------------\n", before
+          # Print actual previous lines from buffer
+          for (i = (NR - before); i <= NR; i++) {
+              if (i in buffer) {
+                  printf "(%d): %s\n", i, buffer[i]
+              }
+          }
+          printf "===================== END Error ========================= #%d @ line %d\n", error_count, NR
+          printf "=========================================================\n\n"
+        # Clear old buffer entries
+        for (i in buffer) {
+          delete buffer[i]
+        }
+    }
+     /\] Error / {
+         error_count++
+          printf "===================== START Error ======================= #%d @ line %d\n", error_count, NR
+         for (i = (NR - before); i <= NR; i++) {
+             if (i in buffer) {
+                 printf "(%d): %s\n", i, buffer[i]
+             }
+         }
+         printf "(%d): %s\n", NR, $0
+         printf "==========================================================\n\n"
+     }
+    END {
+        if (error_count == 0) {
+            print "No errors found matching the pattern."
+        } else {
+            printf "\nTotal Errors Found: %d\n", error_count
+        }
+    }
+    ' "$file"
+}
+
+function getVCOFromLogFilePath() {
+  # given /wv/src_renewal/gitlab-ci/2025-09-18T06-13-56/aok-clang-nocuda-warn/4284231/cwarn_01.BUILD.aok-clang-nocuda-warn it returns aok-clang-nocuda-warn
+  # given /wv/src_renewal/gitlab-ci/2025-12-18T09-13-56/aaw-clang-warn/4284231/cwarn_01.BUILD.aaw-clang-warn it returns aaw-clang-warn
+  # given /wv/drabri2r_nobackup/calibre_builds/calibre_2025_WA01/calibre_2025_WA01.BUILD_aok-lvsonly it returns aok-lvsonly
+  # given ./calibre_2025_WA01.BUILD_aok-lvsonly it returns aok-lvsonly
+  local logpath="$1"
+  if [ -z "$logpath" ]; then
+    echo "Usage: getVCOFromLogFilePath <logpath>"
+    return 1
+  fi
+  
+  # Get the base filename first
+  local filename
+  filename=$(basename "$logpath")
+  
+  # Extract the VCO from the filename using sed
+  # Pattern 1: filename.BUILD.vco or filename.BUILD_vco
+  local vco
+  vco=$(echo "$filename" | sed -n 's/.*\.BUILD[._]\([a-z][a-z0-9-]*\)$/\1/p')
+  
+  if [ -n "$vco" ]; then
+    echo "$vco"
+    return 0
+  fi
+  
+  # Pattern 2: from directory path like /aok-clang-nocuda-warn/4284231/
+  vco=$(echo "$logpath" | sed -n 's|.*/\([a-z][a-z0-9-]*\)/[0-9]\+/.*|\1|p')
+  
+  if [ -n "$vco" ]; then
+    echo "$vco"
+    return 0
+  fi
+  
+  # If no pattern matches, return empty
+  echo ""
+  return 1
+}
+
+function getBuildFlagsFromVCO() {
+  # given aok-clang-nocuda-warn it returns -Taok -Tclang -Tnocuda -Twarn
+  # given aaw-clang-warn it returns -Taaw -Tclang -Twarn
+  local vco="$1"
+  if [ -z "$vco" ]; then
+    echo "Usage: getBuildFlagsFromVCO <vco>"
+    return 1
+  fi
+  local flags=""
+  local remaining="$vco"
+
+  # Split on hyphens using parameter expansion
+  while [ -n "$remaining" ]; do
+    if [[ "$remaining" == *-* ]]; then
+      # Extract the part before the first hyphen
+      local part="${remaining%%-*}"
+      flags+="-T$part "
+      # Remove the part and the hyphen from remaining
+      remaining="${remaining#*-}"
+    else
+      # Last part (no more hyphens)
+      flags+="-T$remaining "
+      remaining=""
+    fi
+  done
+  echo "$flags"
+}
+
+function getFirstErrors() {
+  local logpath="$1"
+  if [ -z "$logpath" ]; then
+    echo "Usage: getFirstErrors <logpath>"
+    return 1
+  fi
+
+  local result
+  result=$(awk -F': error: ' '/: error: / {print NR ":" $0; exit}' "$logpath")
+  echo "$result"
+}
+
+function getOffendingFileFromErrorLine() {
+  # given: ../../../lv/src/lvbase/perc_type.h:50:30: error: constexpr variable 'PatternMultiFileSubcktNamePrefix_length' must be initialized by a constant expression
+  # return perc_type.h
+  local error_line="$1"
+  if [ -z "$error_line" ]; then
+    echo "Usage: getOffendingFileFromErrorLine <error_line>"
+    return 1
+  fi
+
+  # extract the file path before the first colon
+  local filepath
+  filepath=$(echo "$error_line" | awk -F':' '{print $1}')
+  # return empty string if "Isrc" is not in the result
+  if [[ "$filepath" != *Isrc* ]]; then
+    filepath=""
+  fi
+  # get the base name of the file
+  local filename
+  filename=$(basename "$filepath")
+  echo "$filename"
+}
+
+function getBuildTarget() {
+  local log_line="$1"
+  local full_target_path
+  full_target_path=$(echo "$log_line" | head -n1 | sed -E "s/.*-o ([^ ]*\.o).*/\1/")
+  echo "$full_target_path"
+}
+
+function getPreviousBuildFile() {
+  # Given the argument logpath and offending file name it returns ( cd ic/lv/aok; cglu; gmake -Tclang -Tnocuda -Twarn -C lithas/calibrewb/ ../main_src/cwb/mdf_plot.o )
+  local logpath="$1"
+  local line_number="$2"
+  if [ -z "$logpath" ] || [ -z "$line_number" ]; then
+    echo "Usage: getPreviousBuildCmd <logpath> <line_number>"
+    return 1
+  fi
+  local result
+  result=$(head -n "$line_number" "$logpath" | grep -i -E -- "-o .*\.o" | tail -n 1)
+  result=$(echo "$result" | sed -E "s/.*-o ([^ ]*\.o).*/\1/")
+  echo "$result"
+}
+
+function getLogLineNumber() {
+  local log_line="$1"
+  local line_number
+  line_number=$(echo "$log_line" | head -n1 | cut -d: -f1)
+  echo "$line_number"
+}
+
+function getOGBuildCmd() {
+  local offending_file="$1"
+  local logpath="$2"
+  if [ -z "$offending_file" ] || [ -z "$logpath" ]; then
+    echo "Usage: getOGBuildCmd <offending_file> <logpath>"
+    return 1
+  fi
+  local grep_pattern
+  grep_pattern="-o .*${offending_file}.*.o"
+  result=$(grep -n -- "$grep_pattern" "$logpath")
+  echo "$result"
+}
+
+function getEnteringDirectory() {
+  local logpath="$1"
+  local log_line_number=$2
+  if [ -z "$logpath" ]; then
+    echo "Usage: getEnteringDirectory <logpath>"
+    return 1
+  fi
+  local result
+  result=$(head -n "$log_line_number" "$logpath" | grep -i "entering directory" | tail -n 1)
+  echo "$result"
+}
+
+function getBuildDirectory() {
+  # given "gmake4.2.1.exe[4]: Entering directory '/wv/toaster_build/calibre_builds/cwarn_01/ic/lv/$VCO/lithas/opclibs'"
+  # return lithas/opclibs
+  # given "gmake4.2.1.exe[4]: Entering directory '/wv/toaster_build/calibre_builds/cwarn_01/ic/lv/$VCO/lithas/abc/opclibs'"
+  # return lithas/abc/opclibs
+  local entering_directory_line="$1"
+  local vco="$2"
+  if [ -z "$vco" ] || [ -z "$entering_directory_line" ]; then
+    echo "Usage: getBuildDirectory <entering_directory_line> <vco>"
+    return 1
+  fi
+  local dir_path
+  dir_path=$(echo "$entering_directory_line" | sed -E "s/.*Entering directory '.*\/lv\/${vco}\/(.*)'/\1/")
+  echo "$dir_path"
+}
+
+function getSrcDir() {
+  # given "gmake4.2.1.exe[4]: Entering directory '/wv/toaster_build/calibre_builds/cwarn_01/ic/lv/$VCO/lithas/opclibs'"
+  # return $IWA/ic/lv/$VCO
+  # given "gmake4.2.1.exe[4]: Entering directory '/wv/toaster_build/calibre_builds/cwarn_01/ic/lv/$VCO/lithas/abc/opclibs'"
+  # return $IWA/ic/lv/$VCO
+  local entering_directory_line=$1
+  local vco=$2
+  dir_path=$(echo "$entering_directory_line" | sed -E "s/.*Entering directory '\/.*\/(ic\/.*)\/${vco}\/.*/\1/")
+  echo "\$IWA/$dir_path/$vco"
+}
+
+function log() {
+  local level="$1"
+  local message="$2"
+  local timestamp
+  timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+  # return if level is DEBUG and DEBUG is not set or is 0
+  if [ "$level" = "DEBUG" ] && [ -z "$DEBUG" ]; then
+    return
+  fi
+  echo "[$timestamp] [$level] $message"
+}
+
+function getBuildCmd() {
+  # Given the argument logpath and offending file name it returns ( cd ic/lv/aok; cglu; gmake -Tclang -Tnocuda -Twarn -C lithas/calibrewb/ ../main_src/cwb/mdf_plot.o )
+  local logpath="$1"
+  local DEBUG=${DEBUG:-0}
+
+  if [ -z "$logpath" ]; then
+    echo "Usage: getBuildCmd <logpath>"
+    return 1
+  fi
+  local vco=${2:-$(getVCOFromLogFilePath "$logpath")}
+  local vco_flags
+  log "DEBUG" "logpath=$logpath"
+
+  first_errors=$(getFirstErrors "$logpath")
+  log "DEBUG" "First Errors=$first_errors"
+  if [ -z "$first_errors" ]; then
+    log "ERROR" "No errors found in log file '$logpath'."
+    return 1
+  fi
+  local error_line_number
+  error_line_number=$(echo "$first_errors" | cut -d: -f1)
+  log "INFO" "Error Line Number=$error_line_number"
+
+  log "DEBUG" "VCO=$vco"
+  if [ -z "$vco" ]; then
+    log "ERROR" "Could not determine VCO from log file path '$logpath'."
+    return 1
+  fi
+
+  vco_flags=$(getBuildFlagsFromVCO "$vco")
+  log "DEBUG" "VCO Flags=$vco_flags"
+  if [ -z "$vco_flags" ]; then
+    log "ERROR" "Could not determine build flags from VCO '$vco'."
+    return 1
+  fi
+
+  offending_file=$(getOffendingFileFromErrorLine "$first_errors")
+  if [ -z "$offending_file" ]; then
+    log "ERROR" "Could not determine offending file from error line."
+    log "INFO" "Trying something else"
+    offending_file=$(getPreviousBuildFile "$logpath" "$error_line_number")
+    if [ -z "$offending_file" ]; then
+      log "ERROR" "Could not determine offending file from error line."
+      return 1
+    fi
+  fi
+  case "$offending_file" in
+  *.h | *.c | *.cpp | *.C)
+    offending_file="${offending_file%.*}"
+    ;;
+  esac
+  log "DEBUG" "Offending File=$offending_file"
+
+  local log_line
+  log_line=$(getOGBuildCmd "$offending_file" "$logpath")
+  if [ -z "$log_line" ]; then
+    log "ERROR" "Could not find build command for offending file '$offending_file' in log '$logpath'."
+    return 1
+  fi
+  log "DEBUG: Log Line=$log_line"
+
+  local build_target
+  build_target=$(getBuildTarget "$log_line")
+  log "DEBUG" "Build Target=$build_target"
+  if [ -z "$build_target" ]; then
+    log "ERROR" "Could not determine build target from log line."
+    return 1
+  fi
+
+  local target_build_line_number
+  target_build_line_number=$(getLogLineNumber "$log_line")
+  log "DEBUG" "Build Line Number=$target_build_line_number"
+
+  local entering_directory
+  entering_directory=$(getEnteringDirectory "$logpath" "$target_build_line_number")
+  log "DEBUG" "Entering Directory Line=$entering_directory"
+
+  local build_directory
+  build_directory=$(getBuildDirectory "$entering_directory" "$vco")
+  log "DEBUG" "Build Directory=$build_directory"
+
+  local src_dir
+  src_dir=$(getSrcDir "$entering_directory" "$vco")
+  log "DEBUG" "Source Directory=$src_dir"
+
+  # Construct the build command
+  local build_cmd="( cd "$src_dir"; cglu; gmake $vco_flags -C $build_directory $build_target )"
+  echo "$build_cmd"
+}
+
+function check_git_consistency() {
+  local search_dir="${1:-.}"
+  local pattern="${2:-src}"
+  local max_depth="${3:-2}"
+  local use_tags="${4:-0}"
+  local tag_prefix="${5:-cb_}"
+
+  help_msg="Usage: check_git_consistency [search_dir] [pattern] [max_depth] [use_tags] [tag_prefix]
+    - search_dir: Directory to start searching (default: current directory)
+    - pattern: Pattern to match directory names (default: 'src')
+    - max_depth: Maximum depth for the search (default: 2)
+    - use_tags: If set to 1, checks git tags instead of commit hashes (default: 0)
+    - tag_prefix: Prefix for tags to consider when use_tags is 1 (default: 'cb_')"
+  if [ "$1" = "-h" ] || [ "$1" = "--help" ]; then
+    echo "$help_msg"
+    return 0
+  fi
+
+  echo "Checking Git repository consistency in $search_dir"
+  search_dir=$(realpath "$search_dir")
+
+  # Find all matching directories and get their tags
+  local result
+  if [ "$use_tags" -eq 1 ]; then
+    local find_bash_cmd
+    find_bash_cmd=' PATH=/usr/bin:/bin:$PATH ; cd "{}" 2>/dev/null && tag_prefix="'"$tag_prefix"'" ; tags=$(git tag --points-at HEAD 2>/dev/null | grep "^$tag_prefix" | head -1) ; if [ -n "$tags" ]; then echo "$tags ({})" ; else echo "NO_MATCHING_TAG ({})" ; fi '
+    result=$( find "$search_dir" -maxdepth "$max_depth" -type d -name "*$pattern*" -exec bash -c "$find_bash_cmd" \; )
+  else
+    local find_bash_cmd
+    find_bash_cmd=' PATH=/usr/bin:/bin:$PATH ; cd "{}" 2>/dev/null && git rev-parse HEAD && echo " ({})" '
+    result=$( find "$search_dir" -maxdepth "$max_depth" -type d -name "*$pattern*" -exec bash -c "$find_bash_cmd" \; )
+  fi
+
+  # Count unique SHAs (excluding repo paths)
+  local unique_result_count
+  unique_result_count=$(echo "$result" | cut -d' ' -f1 | sort -u | wc -l)
+
+  # Get list of SHAs
+  if [ "$unique_result_count" -gt 1 ]; then
+    echo "ERROR: Found $unique_result_count different results!"
+    echo "$result" | awk '{
+            sha = $1;
+            repo = substr($0, length(sha) + 2);
+            # Remove newlines
+            gsub(/\n/, "", sha);
+            gsub(/\n/, "", repo);
+            if (prev_sha != sha) {
+                printf "  %s: %s\n", sha, repo;
+                prev_sha = sha;
+            } else {
+                printf "    - %s\n", repo;
+            }
+        }'
+    return 1
+  elif [ "$unique_result_count" -eq 0 ]; then
+    echo "No git repositories found."
+    return 1
+  else
+    local sha
+    sha=$(echo "$result" | head -1 | cut -d' ' -f1)
+    echo "Success: All repositories have the same commit hash: $sha"
+    return 0
+  fi
+}
+
+function check_git_tag_consistency(){
+  check_git_consistency "$1" "$2" "$3" 1
+}
+
+function setup_build_env() {
+    export PATH=/user/gitdet/bin:/user/icdet/bin:/usr/mgc/bin:/usr/bin/:/bin
+    . /user/icdet/bin/detalias.sh
+    . /user/pete/bin/env_init.sh
+    export MGC_SERVER='/wv/mgc/mgc_server'
+    export WG_SERVER='/wv/cal_wg_server'
+
+    lserver set
+}
+
+function make_workareas() {
+    # check if "ic" directory is in the iwa directory
+    local current_dir
+    current_dir=$(pwd)
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
+        return 1
+    fi
+    local BUILD_VCO=${BUILD_VCO:-$VCO}
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+    for dir in ic_superproj lv euv; do
+        if [ -d "${IWA}/ic/${dir}" ]; then
+          echo "Making work area for ic/${dir}/${BUILD_VCO}"
+          cd "${IWA}/ic/${dir}" || exit
+          # Check if the BUILD_VCO directory already exists
+          if [ ! -d "${BUILD_VCO}" ]; then
+          
+              mkwa . . "$BUILD_VCO" -newdir
+          fi
+        fi
+    done
+    
+    # return to the original directory
+    cd "${current_dir}" || exit
+}
+
+function remove_workarea() {
+    # check if "ic" directory is in the iwa directory
+    local current_dir
+    current_dir=$(pwd)
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
+        return 1
+    fi
+    local BUILD_VCO=${BUILD_VCO:-$VCO}
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+    for dir in ic_superproj lv euv; do
+        if [ -d "${IWA}/ic/${dir}/${BUILD_VCO}" ]; then
+          echo "Removing work area for ic/${dir}/${BUILD_VCO}"
+          echo "Are you sure? (y/n)"
+          read -r answer
+          if [ "$answer" != "y" ]; then
+              echo "Aborting."
+              return 1
+          fi
+          rm -rf "${IWA}/ic/${dir:?}/${BUILD_VCO}"
+        fi
+    done
+    
+    # return to the original directory
+    cd "${current_dir}" || exit
+}
+
+function set_gmake_parallel() {
+    cpu_count=$(/home/cqi/toolsets/any/bin/systemInfo | grep 'total logical CPU units' | awk '{print $NF}')
+    if [ -z "${cpu_count}" ]; then
+        echo "cpu_count is empty, setting to 8"
+        cpu_count=8
+    fi
+
+    if [ "${cpu_count}" -gt 60 ]; then
+        echo "cpu_count is greater than 60, setting to 60"
+        cpu_count=60
+    fi
+
+    export GMAKE_HDR_PARALLEL=-j${cpu_count}
+    export GMAKE_LIB_PARALLEL=-j${cpu_count}
+    export GMAKE_EXEC_PARALLEL=-j${cpu_count}
+    export GMAKE_ICDEP_PARALLEL=-j
+    export GMAKE_INC_PARALLEL=-j
+}
+
+function set_gmake_output_sync() {
+    requested_output_sync=$1
+    if [ -z "${requested_output_sync}" ]; then
+        requested_output_sync="target"
+    fi
+    # Options for --output-sync:
+    #     none: This is the default: all output is sent directly as it is generated and no synchronization is performed.
+    #     line: Output from each individual line of the recipe is grouped and printed as soon as that line is complete.
+    #         If a recipe consists of multiple lines, they may be interspersed with lines from other recipes.
+    #     target: Output from the entire recipe for each target is grouped and printed once the target is complete.
+    #         This is the default if the --output-sync or -O option is given with no argument.
+    #     recurse: Output from each recursive invocation of make is grouped and printed once the recursive invocation is complete.
+    export MAKEFLAGS=--output-sync=${requested_output_sync}
+}
+
+function make_cxx_warn_flags() {
+    if [ -z "${BUILD_LOG_PATH}" ]; then
+        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
+        BUILD_LOG_PATH="/dev/stdout"
+    fi
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        return 1
+    fi
+
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+    echo "Running mk_imports and imports to enable cxx_warn_flags generation"
+    (
+        cd "${IWA}/ic/ic_superproj/${BUILD_VCO}" || exit
+        cglu
+        gmake mk_imports imports >>"${BUILD_LOG_PATH}" 2>&1
+    )
+
+    echo "Generating cxx_warn_flags"
+    (
+        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
+        cglu
+        gmake cxx_warn_flags >>"${BUILD_LOG_PATH}" 2>&1
+    )
+}
+
+function mk_ic_hdr() {
+    echo "Starting mk_ic_hdr"
+    if [ -z "${BUILD_LOG_PATH}" ]; then
+        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
+        BUILD_LOG_PATH="/dev/stdout"
+    fi
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        return 1
+    fi
+
+    local BUILD_VCO=${BUILD_VCO:-$VCO}
+
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+
+    echo "Current directory is $(pwd)" >>"${BUILD_LOG_PATH}"
+    (
+        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
+        cglu
+        gmake ic_hdr  >> "${BUILD_LOG_PATH}" 2>&1
+    )
+
+    # if errors in log exit with error and build log path is not /dev/stdout
+    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
+        if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
+            echo "Error: mk_ic_hdr failed. Check the build log at ${BUILD_LOG_PATH} for details."
+            return 1
+        fi
+    fi
+}
+
+function mk_euv() {
+    echo "Starting mk_euv"
+    if [ -z "${BUILD_LOG_PATH}" ]; then
+        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
+        BUILD_LOG_PATH="/dev/stdout"
+    fi
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        return 1
+    fi
+
+    local BUILD_VCO=${BUILD_VCO:-$VCO}
+
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+    if [ -d "${IWA}/ic/euv/${BUILD_VCO}" ]; then
+        echo "EUV directory found, building EUV headers" 
+        (
+            cd "${IWA}/ic/euv/${BUILD_VCO}" || exit
+            cglu
+            gmake lcl_lib  >>"${BUILD_LOG_PATH}" 2>&1
+        )
+    else
+        echo "EUV directory not found, skipping EUV build" 
+    fi    
+    # if errors in log exit with error
+    if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
+        echo "Error: mk_euv failed. Check the build log at ${BUILD_LOG_PATH} for details."
+        return 1
+    fi
+}
+
+function mk_lcl_libs() {
+    echo "Starting mk_lcl_libs"
+    if [ -z "${BUILD_LOG_PATH}" ]; then
+        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
+        BUILD_LOG_PATH="/dev/stdout"
+    fi
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        return 1
+    fi
+
+    local BUILD_VCO=${BUILD_VCO:-$VCO}
+
+    if [ -z "$BUILD_VCO" ]; then
+        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        return 1
+    fi
+
+    (
+        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
+        cglu
+        gmake lcl_lib lcl_olib  >>"${BUILD_LOG_PATH}" 2>&1
+    )
+    # if errors in log exit with error    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
+    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
+        if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
+            echo "Error: mk_lcl_libs failed. Check the build log at ${BUILD_LOG_PATH} for details."
+            return 1
+        fi
+    fi
+}
+
+function mk_all() {
+    IWA=${1}
+    BUILD_VCO=${2}
+    BUILD_LOG_PATH=${3}
+
+    if [ -z "${IWA}" ] || [ -z "${BUILD_VCO}" ] || [ -z "${BUILD_LOG_PATH}" ]; then
+        echo "Usage: mk_all <IWA> <BUILD_VCO> <BUILD_LOG_PATH>"
+        return 1
+    fi
+    IWA=$(realpath "${IWA}")
+    export IWA
+    export BUILD_VCO
+    export BUILD_LOG_PATH
+    touch "${BUILD_LOG_PATH}"
+    export BUILD_LOG_PATH=$(realpath "${BUILD_LOG_PATH}")
+    echo "Build log path: ${BUILD_LOG_PATH}"
+    echo "Build VCO: ${BUILD_VCO}"
+    echo "IWA: ${IWA}"
+
+    setup_build_env
+    make_workareas ${IWA}
+    set_gmake_parallel
+    set_gmake_output_sync recurse
+    {
+        make_cxx_warn_flags
+        mk_ic_hdr
+        mk_euv
+        mk_lcl_libs
+    }
+}
+
+function update_git_repos() {
+    GIT_TAG=${1:-trunk}
+    if [ -z "${GIT_TAG}" ]; then
+        GIT_TAG="trunk"
+    fi
+    if [ ! -d "${IWA}/ic" ]; then
+        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        return 1
+    fi
+
+    for dir in ic_superproj lv euv; do
+        if [ -d "${IWA}/ic/${dir}" ]; then
+          echo "Updating git repository for ic/${dir}"
+          cd "${IWA}/ic/${dir}" || exit
+          git fetch
+          git reset --hard
+          git checkout ${GIT_TAG}
+        fi
+    done
+}
+
+function split_log_file() {
+  # The string that will trigger a new file split.
+  # The line containing this string will be the first line of the new file.
+  SPLIT_STRING=${2:-"Entering directory"}
+
+  # --- Script Logic ---
+
+  # Check if an input file was provided
+  if [ -z "$1" ]; then
+      echo "Oops! It looks like you forgot to provide the input file."
+      echo "Usage: $0 <input_file> [output_prefix]"
+      echo ""
+      echo "Example: $0 my_huge_log.txt processed_chunk"
+      echo "         This will create files like processed_chunk_001.txt, processed_chunk_002.txt, etc."
+      exit 1
+  fi
+
+  INPUT_FILE="$1"
+  # Set the output file prefix. Defaults to 'output' if not specified by the user.
+  OUTPUT_PREFIX="${3:-output}"
+
+  echo "Starting file splitting process..."
+  echo "------------------------------------"
+  echo "Input File: '$INPUT_FILE'"
+  echo "Split Trigger: '$SPLIT_STRING'"
+  echo "Output files will start with: '${OUTPUT_PREFIX}_XXX.txt'"
+  echo "------------------------------------"
+
+  # Use awk to perform the splitting
+  awk -v prefix="$OUTPUT_PREFIX" -v split_str="$SPLIT_STRING" '
+  BEGIN {
+      file_num = 0;      # Counter for output files
+      current_file = ""; # Stores the name of the current output file
+  }
+
+  # This block executes when the split string is found in a line
+  $0 ~ split_str {
+      # If a file was already open, close it before starting a new one.
+      # This prevents too many open file handles for very large splits.
+      if (current_file != "") {
+          close(current_file);
+      }
+      file_num++; # Increment the file counter
+      # Create the new filename with leading zeros (e.g., output_001.txt)
+      current_file = sprintf("%s_%03d.txt", prefix, file_num);
+  }
+
+  # This block executes for every line
+  {
+      # Handle the initial block of lines before the first split_str is encountered.
+      # These lines should go into the first output file.
+      if (file_num == 0) {
+          file_num = 1;
+          current_file = sprintf("%s_%03d.txt", prefix, file_num);
+      }
+      # Print the current line to the currently active output file
+      print > current_file;
+  }
+
+  # This block executes after all lines have been processed
+  END {
+      # Ensure the very last file is closed properly.
+      if (current_file != "") {
+          close(current_file);
+      }
+      print "File splitting complete! Check your directory for files starting with '" prefix "_'."
+  }' "$INPUT_FILE"
+
+  echo "All done!"
+}
+
+function calibre_checkout_old_build(){
+  # uses git mkwa to checkout an old calibre build given the build date in YYYY_MM_DD format
+  local build_date=${1}
+  build_date=${1}
+  if [ -z "${build_date}" ]; then
+    echo "Usage: calibre_checkout_old_build <build_date in YYYY_MM_DD format>"
+    return 1
+  fi
+  git mkwa -Tsrc -d ${build_date} nightly_${build_date//_/""}
+}
+
+function mkwa_many_old_calibre_builds() {
+  # for i in {1..9}; do git mkwa -Tsrc -d 2025_0${1}_01 nightly_20250${1}01; done
+  # 
+  echo "Are you sure you want to checkout many calibre builds 1st build of the month from January to September? (y/n)"
+  read -r answer
+  if [ "$answer" != "y" ]; then
+    echo "Aborting."
+    return 1
+  fi
+
+  for i in {1..9}; do git mkwa -Tsrc -d 2025_0${i}_01 nightly_20250${i}01; done
+}
+
+function build_many_old_calibre_builds() {
+  export VCO=${VCO:-aok-clang-nocuda-warn}
+  starting_dir=$(pwd)
+  echo "Are you sure you want to build all old calibre builds in /wv/drabri2r_nobackup/calibre_builds/? (y/n)"
+  read -r answer
+  if [ "$answer" != "y" ]; then
+    echo "Aborting."
+    return 1
+  fi
+  echo "VCO is set to ${VCO}. Is this correct? (y/n)"
+  read -r answer
+  if [ "$answer" != "y" ]; then
+    echo "Aborting."
+    return 1
+  fi
+
+  for d in  /wv/drabri2r_nobackup/calibre_builds/*; do
+    cd $d
+    # if d name is "calibre_2025_WA01" skip
+    if [[ "$(basename "$d")" == "calibre_2025_WA01" ]]; then
+        echo "Skipping $(pwd) as it is calibre_2025_WA01"
+        continue
+    fi
+    if [ ! -d "$(pwd)/ic/lv/" ]; then
+        echo "Skipping $(pwd) as ic/lv/ does not exist"
+        continue
+    fi
+    # check for a build log with the last line reporting ABORTED
+    find_result=$(find . -maxdepth 2 -type f -name "*.BUILD.${VCO}" )
+    if [ -n "$find_result" ]; then
+        last_line=$(tail -n 1 "$find_result")
+        if [[ "$last_line" != *"ABORTED"* && "$last_line" != *"FAILED"* ]]; then
+            echo "Skipping $(pwd) as last build was successful."
+            continue
+        fi
+        remove_workarea
+    fi
+
+    echo "Building in $(pwd) with VCO ${VCO}"
+    export IWA=$(pwd)
+    export LOG_DIR=$(pwd)
+    export LOG_FILENAME=$(basename $(pwd)).BUILD.$VCO
+    make_workareas
+    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/calibre-development-tools && /home/drabri2r/Projects/calibre-development-tools/src/shell/build_vco -vco ${VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
+    cd -
+  done
+  cd "${starting_dir}" || exit
+}
+
+function get_warnings_on_all_build_logs() {
+  local search_dir="${1:-.}"
+  local pattern="\.BUILD\.a"
+  local max_depth="${3:-3}"
+  local vco
+
+  local warning_cmd
+  local warning_script="/home/drabri2r/Projects/calibre-development-tools/bin/getWarnings"
+  local resolved_search_dir
+  resolved_search_dir=$(realpath "$search_dir")
+
+  echo "Searching for warnings in build logs under $resolved_search_dir"
+
+  find "$resolved_search_dir" -maxdepth "$max_depth" -type f -name "*$pattern*" | while read logfile; do
+      vco=$(echo "$logfile" | sed -E 's/.*\.BUILD\.(.*)/\1/')
+      log_file_directory=$(dirname "$logfile")
+      output_file="$log_file_directory/${vco}.warnings.json"
+      stats_output_file="$log_file_directory/${vco}.cwarn_summary.json"
+      local iwa=$(realpath "${log_file_directory}/../")
+      warning_cmd="$warning_script --logfile $logfile --iwa $iwa --build-vco $vco --output $output_file --stats-output $stats_output_file"
+      echo "----- Warnings in $logfile -----"
+      echo "Running command: $warning_cmd"
+      eval "$warning_cmd"
+      echo "Warnings saved to $output_file"
+      echo "--------------------------------"
+  done
+}
+
+GITLAB_HOST_LIST=(
+  cal-arm-19
+  cal-arm-19-cdtop
+  cdtop-bld01-r10
+  cdtop-bld01-r7
+  cdtop-bld01-r8
+  cdtop-bld02-r10
+  cdtop-bld02-r7 
+  cdtop-bld02-r8 
+  cdtop-oss-r7
+  godzilla 
+  congo 
+  orw-bigbuild-p01
+  orw-calapptainer-01-r8
+  orw-calapptainer-02-r8 
+  orw-calci-dkr-1
+  orw-calci-r8-1
+  orw-calci-r8-2 
+  orw-calci-r8-3 
+  orw-calci-r8-4 
+  orw-calci-r8-7 
+  orw-calci-r8-8 
+  orw-calci-s15-1 
+  orw-cdtops15s5-01 
+  orw-gitlab-runner1-r7 
+  orw-gitlab-runner11-r8 
+  orw-gitlab-runner12-r8 
+  orw-gitlab-runner13-r8
+  orw-gitlab-runner3-r6 
+  orw-gitlab-runner4-r6 
+  orw-gitlab-runner5-r6 
+  orw-gitlab-runner6-r8 
+  orw-gitlab-runner7-r8 
+  wilder
+)
+
+function run_cmd_on_many() {
+  # Run a specified command on multiple remote servers via SSH.
+  # Usage: run_cmd_on_many "<command>" [user@server1 user@server2 ...]
+  # Example: run_cmd_on_many "uptime; df -h /" user@server1 user@server2 user@server3
+  COMMAND_TO_RUN="$1"
+  SERVER_LIST=()
+  # all other arguments are servers
+  for arg in "$@"; do
+      if [ "$arg" != "$COMMAND_TO_RUN" ]; then
+          SERVER_LIST+=("$arg.wv.mentorg.com")
+      fi
+  done
+  if [ "${#SERVER_LIST[@]}" -eq 0 ]; then
+      echo "No servers provided. Please provide at least one server."
+      return 1
+  fi
+  echo "Starting remote command execution on multiple servers with enhanced debugging..."
+  echo "-----------------------------------------------------------------"
+
+  # Loop through each server in our list
+  for SERVER_ENTRY in "${SERVER_LIST[@]}"; do
+
+      # Execute the command remotely using SSH with verbose output
+      # -v: Verbose SSH output (use -vv or -vvv for more detail if needed)
+      # -o BatchMode=yes: Prevents SSH from asking for passwords if key auth fails.
+      # -o ConnectTimeout=10: Increased timeout (in seconds) for connection attempts.
+      #                      Adjust as needed for your network.
+      # -T: Disables pseudo-terminal allocation. Good for non-interactive commands.
+      # 2>&1: Redirects stderr to stdout, so all SSH and remote command output goes to the log.
+      ssh -o BatchMode=yes -o ConnectTimeout=10 -T "$SERVER_ENTRY" "$COMMAND_TO_RUN"
+
+      # Check the exit status of the SSH command (which now reflects the remote command's exit status)
+      SSH_EXIT_STATUS=$?
+
+      if [ "$SSH_EXIT_STATUS" -eq 0 ]; then
+          echo "✅ Command executed successfully on $SERVER_ENTRY."
+      else
+          echo "❌ ERROR: Command failed or SSH connection issue on $SERVER_ENTRY. Exit code: $SSH_EXIT_STATUS" >&2
+      fi
+      echo "-----------------------------------------------------------------"
+  done
+
+  printf "\nRemote command execution completed on all servers.\n"
+}
+
+function pgrep_on_gitlab_hosts() {
+  # Usage: pgrep_on_gitlab_hosts <process_name>
+  # This is mostly here as an example of how to use run_cmd_on_many function.
+  local process_name="$1"
+  if [ -z "$process_name" ]; then
+    echo "Usage: pgrep_on_gitlab_hosts <process_name>"
+    return 1
+  fi
+  run_cmd_on_many "pgrep -fl $process_name" "${GITLAB_HOST_LIST[@]}"
+}
