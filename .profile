@@ -51,6 +51,7 @@ POSSIBLE_PATHS=(
     /user/pevtools/bin
     ${THIS_SCRIPT_DIR}/Dotfiles/pushover/
     ${THIS_SCRIPT_DIR}/Dotfiles/bin/
+    ${HOME}/.local/share/JetBrains/Toolbox/scripts
 )
 
 for p in "${POSSIBLE_PATHS[@]}"; do
@@ -58,4 +59,3 @@ for p in "${POSSIBLE_PATHS[@]}"; do
         PATH=${PATH}${PATH:+:}$p
     fi
 done
-

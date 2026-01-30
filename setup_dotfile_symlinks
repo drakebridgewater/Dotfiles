@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# =====================================================================
+# Takes a home directory and sets up syslinks for files in the Dotfiles directory
+# =====================================================================
+
+SCIPRT_PATH="$(realpath "$0")"
+SCRIPT_DIR="$(dirname "$SCIPRT_PATH")"
+
+INPUT_HOME_DIR="$1"
+if [ -z "$INPUT_HOME_DIR" ]; then
+    echo "Usage: $0 <home_directory>"
+    exit 1
+fi
+
+function check_same_filesystem {
+    local src_file="$1"
+    local dest_file="$2"
+
+    local src_dev
+    local dest_dev
+
+    src_dev=$(stat -c %d "$src_file")
+    dest_dev=$(stat -c %d "$dest_file")
+
+    if [ "$src_dev" -ne "$dest_dev" ]; then
+        return 1
+    else
+        return 0
+    fi
+}
+
+if [ ! -d "$INPUT_HOME_DIR" ]; then
+    echo "Error: Home directory '$INPUT_HOME_DIR' does not exist."
+    exit 1
+fi
+
+SCRIPT_DIR="$(realpath "$SCRIPT_DIR")"
+INPUT_HOME_DIR="$(realpath "$INPUT_HOME_DIR")"
+
+check_same_filesystem "$SCRIPT_DIR" "$INPUT_HOME_DIR"
+if [ $? -ne 0 ]; then
+    echo "Error: '$SCRIPT_DIR' and '$INPUT_HOME_DIR' are not on the same filesystem."
+    exit 1
+
+fi
+
+NAMES_TO_SKIP=(".git" ".gitignore" ".DS_Store" ".idea" ".mypy_cache" "." "..")
+
+for file in "$SCRIPT_DIR"/.*; do
+    base_file="$(basename "$file")"
+
+    # Skip certain files
+    if [[ " ${NAMES_TO_SKIP[*]} " == *" $base_file "* ]]; then
+        echo "SKIPPING: '$base_file'"
+        continue
+    fi
+
+    target_file="$INPUT_HOME_DIR/$base_file"
+
+    # Skip if the symlink already exists and points to the correct file
+    if [ -L "$target_file" ] && [ "$(realpath $(readlink "$target_file"))" == "$file" ]; then
+        echo "SKIPPING: Symlink for '$file' already exists in '$INPUT_HOME_DIR'."
+        continue
+    fi
+
+    if [ -e "$target_file" ] || [ -L "$target_file" ]; then
+        echo "BACKUP: backing up existing file '$target_file' to '$target_file.bak'"
+        mv "$target_file" "$target_file.bak"
+    fi
+
+    echo "+ CREATING: Creating symlink for '$file' in '$INPUT_HOME_DIR'"
+    ln -s "$file" "$target_file"
+done
