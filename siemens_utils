@@ -81,7 +81,8 @@ function finderror_json() {
   local concat_long_lines=1
   local concat_long_lines_length=180
   local concat_long_lines_total=360
-
+  local vco=$(getVCOFromLogFilePath "$file")
+  
   if [ -z "$file" ]; then
     echo "Usage: finderror <filename> [lines_before_error] [max_distance]"
     echo "Example: finderror logfile.log 20 1500"
@@ -178,6 +179,7 @@ function finderror_json() {
         print "      \"last_build_cmd_log_line\": " last_build_cmd_log_line ","
         print "      \"entering_directory\": \"" entering_directory "\","
         print "      \"last_built_file\": \"" last_build_cmd "\","
+        
         if (before > 0) {
           print "      \"context\": ["
           # Print context lines as JSON array
@@ -381,6 +383,9 @@ function getFirstErrors() {
 
   local result
   result=$(awk -F': error: ' '/: error: / {print NR ":" $0; exit}' "$logpath")
+  if [ -z "$result" ]; then
+    result=$(awk -F'/\] Error ' '/\] Error / {print NR ":" $0; exit}' "$logpath")
+  fi
   echo "$result"
 }
 
@@ -500,33 +505,17 @@ function log() {
 
 function getBuildCmd() {
   # Given the argument logpath and offending file name it returns ( cd ic/lv/aok; cglu; gmake -Tclang -Tnocuda -Twarn -C lithas/calibrewb/ ../main_src/cwb/mdf_plot.o )
-  local logpath="$1"
-  local DEBUG=${DEBUG:-0}
+  local offending_file="$1"
+  local logpath=$(realpath "$2")
 
-  if [ -z "$logpath" ]; then
-    echo "Usage: getBuildCmd <logpath>"
-    return 1
-  fi
-  local vco=${2:-$(getVCOFromLogFilePath "$logpath")}
-  local vco_flags
-  log "DEBUG" "logpath=$logpath"
-
-  first_errors=$(getFirstErrors "$logpath")
-  log "DEBUG" "First Errors=$first_errors"
-  if [ -z "$first_errors" ]; then
-    log "ERROR" "No errors found in log file '$logpath'."
-    return 1
-  fi
-  local error_line_number
-  error_line_number=$(echo "$first_errors" | cut -d: -f1)
-  log "INFO" "Error Line Number=$error_line_number"
-
+  local vco=$(getVCOFromLogFilePath "$logpath")
   log "DEBUG" "VCO=$vco"
   if [ -z "$vco" ]; then
     log "ERROR" "Could not determine VCO from log file path '$logpath'."
     return 1
   fi
 
+  local vco_flags
   vco_flags=$(getBuildFlagsFromVCO "$vco")
   log "DEBUG" "VCO Flags=$vco_flags"
   if [ -z "$vco_flags" ]; then
@@ -534,30 +523,13 @@ function getBuildCmd() {
     return 1
   fi
 
-  offending_file=$(getOffendingFileFromErrorLine "$first_errors")
-  if [ -z "$offending_file" ]; then
-    log "ERROR" "Could not determine offending file from error line."
-    log "INFO" "Trying something else"
-    offending_file=$(getPreviousBuildFile "$logpath" "$error_line_number")
-    if [ -z "$offending_file" ]; then
-      log "ERROR" "Could not determine offending file from error line."
-      return 1
-    fi
-  fi
-  case "$offending_file" in
-  *.h | *.c | *.cpp | *.C)
-    offending_file="${offending_file%.*}"
-    ;;
-  esac
-  log "DEBUG" "Offending File=$offending_file"
-
   local log_line
   log_line=$(getOGBuildCmd "$offending_file" "$logpath")
+  log "DEBUG" "Log Line=$log_line"
   if [ -z "$log_line" ]; then
     log "ERROR" "Could not find build command for offending file '$offending_file' in log '$logpath'."
     return 1
   fi
-  log "DEBUG: Log Line=$log_line"
 
   local build_target
   build_target=$(getBuildTarget "$log_line")
@@ -585,6 +557,48 @@ function getBuildCmd() {
 
   # Construct the build command
   local build_cmd="( cd "$src_dir"; cglu; gmake $vco_flags -C $build_directory $build_target )"
+  echo "$build_cmd"
+}
+
+function getFailingBuildCmd() {
+  # Given the argument logpath and offending file name it returns ( cd ic/lv/aok; cglu; gmake -Tclang -Tnocuda -Twarn -C lithas/calibrewb/ ../main_src/cwb/mdf_plot.o )
+  local logpath="$1"
+  local DEBUG=${DEBUG:-0}
+
+  if [ -z "$logpath" ]; then
+    echo "Usage: getBuildCmd <logpath>"
+    return 1
+  fi
+  log "DEBUG" "logpath=$logpath"
+
+  first_errors=$(getFirstErrors "$logpath")
+  log "DEBUG" "First Errors=$first_errors"
+  if [ -z "$first_errors" ]; then
+    log "ERROR" "No errors found in log file '$logpath'."
+    return 1
+  fi
+  local error_line_number
+  error_line_number=$(echo "$first_errors" | cut -d: -f1)
+  log "INFO" "Error Line Number=$error_line_number"
+
+  offending_file=$(getOffendingFileFromErrorLine "$first_errors")
+  if [ -z "$offending_file" ]; then
+    log "ERROR" "Could not determine offending file from error line."
+    log "INFO" "Trying something else"
+    offending_file=$(getPreviousBuildFile "$logpath" "$error_line_number")
+    if [ -z "$offending_file" ]; then
+      log "ERROR" "Could not determine offending file from error line."
+      return 1
+    fi
+  fi
+  case "$offending_file" in
+  *.h | *.c | *.cpp | *.C)
+    offending_file="${offending_file%.*}"
+    ;;
+  esac
+  log "DEBUG" "Offending File=$offending_file"
+  local build_cmd
+  build_cmd=$(getBuildCmd "$offending_file" "$logpath")
   echo "$build_cmd"
 }
 
@@ -671,11 +685,19 @@ function make_workareas() {
     # check if "ic" directory is in the iwa directory
     local current_dir
     current_dir=$(pwd)
+    # if the current directory contains "ic" directory then it's the IWA
+    if [ -d "${current_dir}/ic" ] && [ -z "$IWA" ]; then
+        echo "IWA variable is not set, using current directory: ${current_dir}"
+        IWA="${current_dir}"
+    fi
     if [ ! -d "${IWA}/ic" ]; then
         echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
         return 1
     fi
-    local BUILD_VCO=${BUILD_VCO:-$VCO}
+    if [ -z "$1" ]; then
+      echo "Using environment variable BUILD_VCO of $BUILD_VCO"
+    fi
+    local BUILD_VCO=${1:-$BUILD_VCO}
     if [ -z "$BUILD_VCO" ]; then
         echo "Error: BUILD_VCO variable is not set and VCO is also not set."
         return 1
@@ -701,11 +723,19 @@ function remove_workarea() {
     # check if "ic" directory is in the iwa directory
     local current_dir
     current_dir=$(pwd)
+    # if the current directory contains "ic" directory then it's the IWA
+    if [ -d "${current_dir}/ic" ] && [ -z "$IWA" ]; then
+        echo "IWA variable is not set, using current directory: ${current_dir}"
+        IWA="${current_dir}"
+    fi
     if [ ! -d "${IWA}/ic" ]; then
         echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
         return 1
     fi
-    local BUILD_VCO=${BUILD_VCO:-$VCO}
+    if [ -z "$1" ]; then
+      echo "Using environment variable BUILD_VCO of $BUILD_VCO"
+    fi
+    local BUILD_VCO=${1:-$BUILD_VCO}
     if [ -z "$BUILD_VCO" ]; then
         echo "Error: BUILD_VCO variable is not set and VCO is also not set."
         return 1
@@ -781,14 +811,14 @@ function make_cxx_warn_flags() {
     (
         cd "${IWA}/ic/ic_superproj/${BUILD_VCO}" || exit
         cglu
-        gmake mk_imports imports >>"${BUILD_LOG_PATH}" 2>&1
+        gmake mk_imports imports 2>&1 | tee -a "${BUILD_LOG_PATH}"
     )
 
     echo "Generating cxx_warn_flags"
     (
         cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
         cglu
-        gmake cxx_warn_flags >>"${BUILD_LOG_PATH}" 2>&1
+        gmake cxx_warn_flags 2>&1 | tee -a "${BUILD_LOG_PATH}"
     )
 }
 
@@ -815,7 +845,7 @@ function mk_ic_hdr() {
     (
         cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
         cglu
-        gmake ic_hdr  >> "${BUILD_LOG_PATH}" 2>&1
+        gmake ic_hdr 2>&1 | tee -a "${BUILD_LOG_PATH}"
     )
 
     # if errors in log exit with error and build log path is not /dev/stdout
@@ -850,7 +880,7 @@ function mk_euv() {
         (
             cd "${IWA}/ic/euv/${BUILD_VCO}" || exit
             cglu
-            gmake lcl_lib  >>"${BUILD_LOG_PATH}" 2>&1
+            gmake lcl_lib 2>&1 | tee -a "${BUILD_LOG_PATH}"
         )
     else
         echo "EUV directory not found, skipping EUV build" 
@@ -883,7 +913,7 @@ function mk_lcl_libs() {
     (
         cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
         cglu
-        gmake lcl_lib lcl_olib  >>"${BUILD_LOG_PATH}" 2>&1
+        gmake lcl_lib lcl_olib  2>&1 | tee -a "${BUILD_LOG_PATH}"
     )
     # if errors in log exit with error    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
     if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
@@ -913,10 +943,15 @@ function mk_all() {
     echo "Build VCO: ${BUILD_VCO}"
     echo "IWA: ${IWA}"
 
+    # Move build lod to RETRY_${BUILD_LOG_PATH} if it exists (force)
+    if [ -f "${BUILD_LOG_PATH}" ]; then
+        mv -f "${BUILD_LOG_PATH}" "RETRY_${BUILD_LOG_PATH}"
+    fi
+
     setup_build_env
     make_workareas ${IWA}
     set_gmake_parallel
-    set_gmake_output_sync recurse
+    set_gmake_output_sync
     {
         make_cxx_warn_flags
         mk_ic_hdr
@@ -1042,7 +1077,7 @@ function mkwa_many_old_calibre_builds() {
 }
 
 function build_many_old_calibre_builds() {
-  export VCO=${VCO:-aok-clang-nocuda-warn}
+  export BUILD_VCO=${BUILD_VCO:-aok-clang-nocuda-warn}
   starting_dir=$(pwd)
   echo "Are you sure you want to build all old calibre builds in /wv/drabri2r_nobackup/calibre_builds/? (y/n)"
   read -r answer
@@ -1050,7 +1085,7 @@ function build_many_old_calibre_builds() {
     echo "Aborting."
     return 1
   fi
-  echo "VCO is set to ${VCO}. Is this correct? (y/n)"
+  echo "BUILD_VCO is set to ${BUILD_VCO}. Is this correct? (y/n)"
   read -r answer
   if [ "$answer" != "y" ]; then
     echo "Aborting."
@@ -1069,7 +1104,7 @@ function build_many_old_calibre_builds() {
         continue
     fi
     # check for a build log with the last line reporting ABORTED
-    find_result=$(find . -maxdepth 2 -type f -name "*.BUILD.${VCO}" )
+    find_result=$(find . -maxdepth 2 -type f -name "*.BUILD.${BUILD_VCO}" )
     if [ -n "$find_result" ]; then
         last_line=$(tail -n 1 "$find_result")
         if [[ "$last_line" != *"ABORTED"* && "$last_line" != *"FAILED"* ]]; then
@@ -1079,12 +1114,12 @@ function build_many_old_calibre_builds() {
         remove_workarea
     fi
 
-    echo "Building in $(pwd) with VCO ${VCO}"
+    echo "Building in $(pwd) with BUILD_VCO ${BUILD_VCO}"
     export IWA=$(pwd)
     export LOG_DIR=$(pwd)
-    export LOG_FILENAME=$(basename $(pwd)).BUILD.$VCO
+    export LOG_FILENAME=$(basename $(pwd)).BUILD.$BUILD_VCO
     make_workareas
-    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/calibre-development-tools && /home/drabri2r/Projects/calibre-development-tools/src/shell/build_vco -vco ${VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
+    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/calibre-development-tools && /home/drabri2r/Projects/calibre-development-tools/src/shell/build_vco -vco ${BUILD_VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
     cd -
   done
   cd "${starting_dir}" || exit
@@ -1208,4 +1243,29 @@ function pgrep_on_gitlab_hosts() {
     return 1
   fi
   run_cmd_on_many "pgrep -fl $process_name" "${GITLAB_HOST_LIST[@]}"
+}
+
+function setup_pypi_scanner() {
+  local _CURRENT_DIR
+  _CURRENT_DIR=$(pwd)
+  # are we in a python current environment
+  if [ -z "$VIRTUAL_ENV" ]; then
+      echo "Must be in a python virtual environment"
+      return 1
+  fi
+
+  if [ ! -d "$_CURRENT_DIR/standard-bom" ]; then
+      git clone git@code.siemens.com:sbom/standard-bom.git "$_CURRENT_DIR/standard-bom"
+  fi
+
+  if [ ! -d "$_CURRENT_DIR/pypi-scanner" ]; then
+      git clone git@code.siemens.com:sbom/scanners/pypi-scanner.git "$_CURRENT_DIR/pypi-scanner"
+  fi
+  cd "$_CURRENT_DIR"
+
+  cd "$_CURRENT_DIR/standard-bom"
+  pip install -e .
+
+  cd "$_CURRENT_DIR/pypi-scanner"
+  pip install -e .
 }
