@@ -3,13 +3,13 @@
 # Cleaned and organized for better maintainability and compatibility
 
 # If not running interactively, don't do anything
-[ -z "$PS1" ] || case $- in
-*i*) ;;
-*) return ;;
+case $- in
+    *i*) ;;
+    *) return;;
 esac
 
 # Warn when `SendEnv !TMUX` is not found in ssh config
-if [ -n "$SSH_CLIENT" ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config; then
+if [ -n "$SSH_CLIENT" ] && [ -f ~/.ssh/config ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config 2>/dev/null; then
     echo "Warning: 'SendEnv !TMUX' not found in ~/.ssh/config. This may cause issues with tmux."
 fi
 
@@ -178,7 +178,7 @@ fi
 # Source work-specific files
 # Note: Comment out or remove if not needed on your system
 if [ -f ~/bin/env_init.sh ] && [ -d /user/pete/bin ]; then
-    source ~/bin/env_init.sh
+    source ~/bin/env_init.sh 2>/dev/null || true
 fi
 
 # Source fzf completion if installed
@@ -193,4 +193,7 @@ echo -e "Welcome to BASH, version ${BASH_VERSION%.*}"
 _exit() {
     echo -e "exiting..."
 }
-trap _exit EXIT
+# Only set exit trap for interactive shells
+if [[ $- == *i* ]]; then
+    trap _exit EXIT
+fi

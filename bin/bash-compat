@@ -1,0 +1,18 @@
+#!/bin/ksh93
+# Bash-compatible wrapper script for legacy commands
+# Usage: ./bash-compat.sh [bash-script-file] or ./bash-compat.sh -c "commands"
+
+if [ "$#" -eq 0 ]; then
+    # Interactive mode
+    echo "ksh93 (bash-compatible mode)"
+    exec ksh93 -i
+elif [ "$1" = "-c" ] && [ "$#" -eq 2 ]; then
+    # Execute command string
+    exec ksh93 -c "$2"
+elif [ -f "$1" ]; then
+    # Execute file
+    exec ksh93 "$@"
+else
+    # Execute as command
+    exec ksh93 "$@"
+fi

@@ -104,6 +104,8 @@ dnf install -y \
     wget \
     zip \
     zsh \
+    ripgrep \
+    fzf \
     util-linux-user
 # =====================================================================
 # Web Server Packages

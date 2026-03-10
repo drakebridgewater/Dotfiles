@@ -1,3 +1,5 @@
+[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+
 # If not running interactively, don't do anything
 [[ $- == *i* ]] || return
 
@@ -56,35 +58,54 @@ export HISTFILE=~/.histfile
 export HISTSIZE=1000000
 export SAVEHIST=1000000
 
-# History options
-setopt EXTENDED_HISTORY
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_IGNORE_SPACE # Ignore commands that start with a space
-setopt HIST_NO_STORE
-setopt HIST_REDUCE_BLANKS
-setopt HIST_SAVE_NO_DUPS
-setopt HIST_VERIFY
-setopt INC_APPEND_HISTORY_TIME
+POSSIBLE_HISTORY_OPTIONS=(
+  EXTENDED_HISTORY # Save each history entry with a timestamp
+  HIST_IGNORE_ALL_DUPS # Remove older duplicates from the history list when a new entry is added
+  HIST_IGNORE_SPACE # Don't save commands that start with a space
+  HIST_NO_STORE # Don't save commands that have been marked with a leading space or that are duplicates of the previous command
+  HIST_REDUCE_BLANKS # Remove superfluous blanks from each command line being added to the history
+  HIST_SAVE_NO_DUPS # Don't write duplicate entries in the history file
+  HIST_VERIFY # Don't execute immediately upon recalling a history entry, but put it in the command line for editing
+  INC_APPEND_HISTORY_TIME # Like INC_APPEND_HISTORY, but also save the time of each command in the history file
+  HIST_NO_FUNCTIONS # Don't save function definitions in the history file
+)
 
-# Directory navigation options
-setopt PUSHD_IGNORE_DUPS
-setopt AUTO_PUSHD
+POSSIBLE_DIRECOTRY_NAV_OPTIONS=(
+  PUSHD_IGNORE_DUPS # Don't push the same directory onto the stack
+  AUTO_PUSHD # Automatically pushd when changing directories
+)
 
-# Misc options
-setopt CORRECT # Enable command correction
-setopt MAIL_WARNING # Warn if mail is waiting
-setopt RM_STAR_WAIT # Confirm before removing all files
-setopt ALWAYS_TO_END # Always pushd to the end of the directory stack
- # setopt WARN_CREATE_GLOBAL # Warn when creating global variables
-setopt NOCLOBBER # Prevent overwriting files with redirection
- # setopt PROMPTSUBST # Enable prompt substitution
-setopt INTERACTIVECOMMENTS # Enable interactive comments
- # setopt RCQUOTES # Enable rc quotes
- # setopt RCEXPANDPARAM # Enable rc parameter expansion
- # setopt EXTENDEDGLOB # Enable extended globbing (example: ^, ~, ##, etc.)
- # setopt GLOBSTARSHORT # Enable short globbing for **/*
- # setopt CBases # Enable C-style brace expansion
- # setopt OCTALZEROES # Enable octal zeroes
+POSSIBLE_OTHER_OPTIONS=(
+  # CORRECT # Enable command correction
+  # CORRECT_ALL # Enable correction for all arguments, not just the command
+  MAIL_WARNING # Warn if mail is waiting
+  # RM_STAR_WAIT # Confirm before removing all files
+  ALWAYS_TO_END # Always pushd to the end of the directory stack
+  # WARN_CREATE_GLOBAL # Warn when creating global variables
+  # NOCLOBBER # Prevent overwriting files with redirection
+  # PROMPTSUBST # Enable prompt substitution
+  INTERACTIVECOMMENTS # Enable interactive comments
+  # RCQUOTES # Enable rc quotes
+  # RCEXPANDPARAM # Enable rc parameter expansion
+  # EXTENDEDGLOB # Enable extended globbing (example: ^, ~, ##, etc.)
+  # GLOBSTARSHORT # Enable short globbing for **/*
+  # CBases # Enable C-style brace expansion
+  # OCTALZEROES # Enable octal zeroes
+  BAD_PATTERN # Enable bad pattern checking
+  MONITOR # Enable job control
+  NOTIFY # Notify of job status immediately
+)
+ALL_OPTIONS=(
+  "${POSSIBLE_DIRECOTRY_NAV_OPTIONS[@]}"
+  "${POSSIBLE_HISTORY_OPTIONS[@]}"
+  "${POSSIBLE_OTHER_OPTIONS[@]}"
+)
+for option in "${ALL_OPTIONS[@]}"; do
+    setopt "$option"  2> /dev/null || echo "setopt $option not found, skipping $option option."
+done
+
+# disable correct on specific commands
+# alias docker='nocorrect docker'
 
 # This style defines the path where any cache files containing dumped completion data are stored.
 # https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Standard-Styles
@@ -100,6 +121,7 @@ typeset -A match_specifications=(
   [nonseparators_after_any_before_separator]='r:?||[-_ \]=*'
   [separator_after_any]='l:?|=[-_ \]'
 )
+zstyle ':completion:*' glob '*'
 zstyle ':completion:*' matcher-list \
   "$match_specifications[case_and_dash_insensitive] $match_specifications[any_before_dot] $match_specifications[any_before_word]" \
   "+$match_specifications[nonseparators_after_any_before_separator] $match_specifications[separator_after_any]" \

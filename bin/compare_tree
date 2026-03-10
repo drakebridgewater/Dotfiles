@@ -1,0 +1,135 @@
+#!/usr/bin/env python3
+"""
+Directory Tree Comparison Tool
+Compares two directory trees and displays differences clearly.
+"""
+
+import os
+import sys
+from pathlib import Path
+from typing import Set, Tuple, Dict
+
+class Colors:
+    """ANSI color codes for terminal output"""
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+
+def get_directory_structure(path: str) -> Tuple[Set[str], Set[str]]:
+    """
+    Get all files and directories in a path (relative to root).
+    Returns: (set of files, set of directories)
+    """
+    root = Path(path)
+    if not root.exists():
+        print(f"{Colors.RED}Error: Path '{path}' does not exist{Colors.RESET}")
+        sys.exit(1)
+    
+    files = set()
+    dirs = set()
+    
+    for item in root.rglob('*'):
+        relative_path = item.relative_to(root)
+        if item.is_file():
+            files.add(str(relative_path))
+        elif item.is_dir():
+            dirs.add(str(relative_path))
+    
+    return files, dirs
+
+def filter_redundant_items(items: Set[str], dirs: Set[str]) -> Set[str]:
+    """
+    Remove files/subdirs that are already covered by a missing parent directory.
+    
+    For example, if 'src/' is missing, don't also list 'src/main.py', 'src/utils/', etc.
+    """
+    filtered = set()
+    sorted_dirs = sorted(dirs)  # Sort to process parent dirs first
+    
+    for item in sorted(items):
+        # Check if any parent directory is already in the missing dirs list
+        is_redundant = False
+        for missing_dir in sorted_dirs:
+            # Check if this item is inside a missing directory
+            if item.startswith(missing_dir + os.sep) or item == missing_dir:
+                is_redundant = True
+                break
+        
+        if not is_redundant:
+            filtered.add(item)
+    
+    return filtered
+
+def compare_directories(dir1: str, dir2: str):
+    """
+    Compare two directory trees and display differences.
+    """
+    print(f"\n{Colors.BOLD}Comparing Directory Trees{Colors.RESET}")
+    print(f"Directory 1: {Colors.BLUE}{dir1}{Colors.RESET}")
+    print(f"Directory 2: {Colors.BLUE}{dir2}{Colors.RESET}")
+    print("=" * 70)
+    
+    # Get structure of both directories
+    files1, dirs1 = get_directory_structure(dir1)
+    files2, dirs2 = get_directory_structure(dir2)
+    
+    # Find differences
+    only_in_dir1_dirs = dirs1 - dirs2
+    only_in_dir2_dirs = dirs2 - dirs1
+    common_dirs = dirs1 & dirs2
+    
+    only_in_dir1_files = files1 - files2
+    only_in_dir2_files = files2 - files1
+    common_files = files1 & files2
+    
+    # Filter out redundant files (those inside missing directories)
+    only_in_dir1_files = filter_redundant_items(only_in_dir1_files, only_in_dir1_dirs)
+    only_in_dir2_files = filter_redundant_items(only_in_dir2_files, only_in_dir2_dirs)
+    
+    # Display results
+    print(f"\n{Colors.BOLD}📊 Summary:{Colors.RESET}")
+    print(f"  Common files: {len(common_files)}")
+    print(f"  Common directories: {len(common_dirs)}")
+    print(f"  Unique to dir1: {len(only_in_dir1_files)} files, {len(only_in_dir1_dirs)} directories")
+    print(f"  Unique to dir2: {len(only_in_dir2_files)} files, {len(only_in_dir2_dirs)} directories")
+    
+    # Directories only in directory 1
+    if only_in_dir1_dirs:
+        print(f"\n{Colors.RED}{Colors.BOLD}📁 Directories only in {dir1}:{Colors.RESET}")
+        for directory in sorted(only_in_dir1_dirs):
+            print(f"  {Colors.RED}- {directory}/{Colors.RESET}")
+    
+    # Files only in directory 1 (not in missing directories)
+    if only_in_dir1_files:
+        print(f"\n{Colors.RED}{Colors.BOLD}📄 Files only in {dir1}:{Colors.RESET}")
+        for file in sorted(only_in_dir1_files):
+            print(f"  {Colors.RED}- {file}{Colors.RESET}")
+    
+    # Directories only in directory 2
+    if only_in_dir2_dirs:
+        print(f"\n{Colors.GREEN}{Colors.BOLD}📁 Directories only in {dir2}:{Colors.RESET}")
+        for directory in sorted(only_in_dir2_dirs):
+            print(f"  {Colors.GREEN}+ {directory}/{Colors.RESET}")
+    
+    # Files only in directory 2 (not in missing directories)
+    if only_in_dir2_files:
+        print(f"\n{Colors.GREEN}{Colors.BOLD}📄 Files only in {dir2}:{Colors.RESET}")
+        for file in sorted(only_in_dir2_files):
+            print(f"  {Colors.GREEN}+ {file}{Colors.RESET}")
+    
+    # Check if directories are identical
+    if not (only_in_dir1_files or only_in_dir2_files or 
+            only_in_dir1_dirs or only_in_dir2_dirs):
+        print(f"\n{Colors.GREEN}{Colors.BOLD}✨ Directories are identical!{Colors.RESET}")
+    
+    print("\n" + "=" * 70)
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <directory1> <directory2>")
+        sys.exit(1)
+    
+    compare_directories(sys.argv[1], sys.argv[2])

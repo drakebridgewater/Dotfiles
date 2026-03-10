@@ -85,8 +85,8 @@ brew install --cask \
 # Office suites and email clients
 echo "Installing office and email apps..."
 brew install --cask microsoft-office  # Office suite
-brew install --cask protonmail-bridge # Email client (ProtonMail)
-brew install --cask proton-mail       # Email client (ProtonMail)
+# brew install --cask protonmail-bridge # Email client (ProtonMail)
+# brew install --cask proton-mail       # Email client (ProtonMail)
 # Optional: brew install --cask mimestream  # Email client (Google [Paid])
 
 # General applications

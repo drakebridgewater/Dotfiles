@@ -1119,7 +1119,7 @@ function build_many_old_calibre_builds() {
     export LOG_DIR=$(pwd)
     export LOG_FILENAME=$(basename $(pwd)).BUILD.$BUILD_VCO
     make_workareas
-    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/calibre-development-tools && /home/drabri2r/Projects/calibre-development-tools/src/shell/build_vco -vco ${BUILD_VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
+    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/cdt/calibre-development-tools && /home/drabri2r/Projects/cdt/calibre-development-tools/src/shell/build_vco -vco ${BUILD_VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
     cd -
   done
   cd "${starting_dir}" || exit
@@ -1132,7 +1132,7 @@ function get_warnings_on_all_build_logs() {
   local vco
 
   local warning_cmd
-  local warning_script="/home/drabri2r/Projects/calibre-development-tools/bin/getWarnings"
+  local warning_script="/home/drabri2r/Projects/cdt/calibre-development-tools/bin/getWarnings"
   local resolved_search_dir
   resolved_search_dir=$(realpath "$search_dir")
 
