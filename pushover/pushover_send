@@ -44,7 +44,7 @@ args = parser.parse_args()
 if args.user in user_keys:
     args.user = user_keys[args.user]
 
-post_content = {"token": "YOUR_PUSHOVER_APP_TOKEN_HERE"}  # drake.bridgewater@gmail.com, "iamthedrake" application
+post_content = {"token": "YOUR_PUSHOVER_APP_TOKEN_HERE"}
 
 # Only pass through parameters that the user actually specified.
 for key, val in vars(args).items():

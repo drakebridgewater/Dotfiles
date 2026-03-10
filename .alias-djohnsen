@@ -1,0 +1,179 @@
+alias getinfo         '/sysadm/local/getinfo -all -us'
+ 
+alias size_of_calibre 'ls -l -h /wv/icdet/work_areas/calibre_20??_?/ic/lv/aoi/locallv/calibre'
+
+alias goCoverityScripts 'cd /wv/coverity/bin'
+alias goHtml          'cd /wv/pevtools/web/htdocs'
+alias goHtmlBuildDocs 'cd /wv/pevtools/web/htdocs/build/docs'
+alias goHtmlSecure    'cd /wv/pevtools/web/htdocs/securechamber'
+
+alias use_aoj 'setenv VCO aoj; setenv BUILD_VCO aoj;  scl enable devtoolset-6 "csh" '
+alias touch_files 'find . -type f -exec touch {} \;'
+alias build_aoj '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -build aoj'
+alias build_aoi '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -build aoi'
+alias build_aok '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat8*"'
+alias build_rh7 '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat7*"'
+alias build_rh73 '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "hostclass=redhat7.3"'
+alias build_sles11_aoi '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles11*,microarch=nehalem|opteronk8"'
+alias build_sles12_aoi '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles12*,microarch=nehalem|opteronk8"'
+alias build_sles11_aoj '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles11*,microarch=haswell|broadwell|skylake|kabylake"'
+alias build_sles12_aoj '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles12*,microarch=haswell|broadwell|skylake|kabylake"'
+
+alias build_avx512 '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "micro=skylake,pmem=250"'
+alias build_gpu    '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu'
+alias build_gpu_2  '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu -l "model=DL380G10-48-3300-768"'
+alias build_gpu_4  '/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu -l "model=XL270dG10-48-3300-1536"'
+
+alias build_aaw 'source /u/sge/sge6/default/common/settings.csh; qrsh -v peak:0 -l "h_rt=86400,arch=lx-arm64" -b y /usr/bin/xterm'
+alias build_aaw_vnc '(source /u/sge/sge6/default/common/settings.csh; qrsh -v peak:0 -l "h_rt=86400,arch=lx-arm64" -b y /home/djohnsen/bin/start_remote_vnc)'
+
+alias test_sles11_aoi   'ssh orw-cgsles11-11'
+# dead alias test_sles11_aoj   'ssh orw-tensor11-p4'
+alias grid_sles12       'ssh vejvoda'
+alias test_sles12       'ssh seldom'
+alias petebld-sles12    'ssh petebld-sles12u5'
+alias test_sles15       'ssh orw-sp2test-s15'
+alias test_sles15s4     'ssh orw-cdtops15s4-01'
+alias test_sles15s5     'ssh orw-cdtops15s5-01'
+alias sles15_OSS        'ssh suzyoss'
+
+alias rhel7_wv  'ssh orw-djohnsen-r7'
+alias rhel7_ies 'ssh ies-djohnsen-c7'
+alias rhel9_wv  'ssh orw-caleval-r9'
+alias rhel8.7   'ssh orw-caleval-r8'
+alias bigbuild  'ssh orw-bigbuild-r8'
+
+alias r8_min  'ssh orw-calbare-r8'
+alias r8_min2 'ssh orw-calbare2-r8'
+
+alias rhel8.7   'ssh orw-caleval-r8'
+
+alias rhelbeta  'ssh orw-calrhel-beta'
+alias slesbeta  'ssh orw-calsuse-beta'
+
+alias rocmssh    'ssh gpu-mi210'
+
+alias pop_master 'rsh berlin -l icbuild "setenv DISPLAY $DISPLAY; /wv/pevtools/bin/calgridsub -hrt 3:00:00 -i -j -l hc=distbldm"'
+alias pop_master_long 'rsh berlin -l icbuild "setenv DISPLAY $DISPLAY; /wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -j -l hc=distbldm"'
+
+alias fs_all  'find ./Isrc/ -name Makefile -o -name "*.mk" -o -name "*.[Cc]" -o -name "*.cxx" -o -name "*.cpp" -o -name "*.[hH]" -o -name "*.hxx" -o -name "*.tcl" -o -name "*.tk" -o -name "*.png" -o -name "*.gif" -o -name "*.ui" -o -name "*.qml" -o -name "*.qml-raw" -o -name "*.qrc" -o -name "*.css" -o -name "*.qss" '
+alias fs  'find ../src/console/framework ../src/console/ldb ../src/console/nextract ../src/console/peek ../src/console/platform ../src/console/qtlm ../src/console/rve ../src/console/systest ../src/console/unittest ../src/console/widgets  ../src/lvs_gui  -name Makefile -o -name "*.mk" -o -name "*.[Cc]" -o -name "*.cxx" -o -name "*.cpp" -o -name "*.[hH]" -o -name "*.hxx" -o -name "*.tcl" -o -name "*.tk" -o -name "*.png" -o -name "*.gif" -o -name "*.ui" -o -name "*.qml" -o -name "*.qml-raw" -o -name "*.qrc" -o -name "*.css" -o -name "*.qss" '
+alias addMore  'ls ../src/locallv/calibre_ldbview.C ../src/locallv/calibre_rve.C ../src/locallv/launchpad.C  '
+alias fds 'find ./Dsrc/ -name Makefile -o -name "*.mk" -o -name "*.[Cc]" -o -name "*.cxx" -o -name "*.cpp" -o -name "*.[hH]" -o -name "*.hxx" -o -name "*.tcl" -o -name "*.tk" -o -name "*.png" -o -name "*.gif" -o -name "*.ui" -o -name "*.qml" -o -name "*.qml-raw" -o -name "*.qrc" -o -name "*.css" -o -name "*.qss" '
+
+alias rveqatst "rsh -l rveqatst localhost"
+
+alias totalView-64  /usr/opt/tv/tv_x86-64_2023.1.6
+alias totalView-arm /usr/opt/tv/tv_arm64_2023.1.6
+
+alias devEnv  "source /wv/icdet/bin/detalias.csh"
+
+alias usePerf  "setenv   MGC_RVE_PERF_TIME 1"
+alias noPerf   "unsetenv MGC_RVE_PERF_TIME"
+
+alias unset_parallel "unsetenv GMAKE_LIB_PARALLEL ; unsetenv GMAKE_EXEC_PARALLEL"
+alias parallel "setenv GMAKE_LIB_PARALLEL -j`/home/icdet/bin/count_processors`; setenv GMAKE_EXEC_PARALLEL -j2"
+alias shared_parallel "setenv GMAKE_LIB_PARALLEL -j2; setenv GMAKE_EXEC_PARALLEL -j2"
+
+alias build64 "setenv BUILD64 1; setenv VCO aof;"
+
+
+# Useful alias to point MGC_HOME at latest build (d_top_last is a symlink that always points at the latest TOT build):
+alias top_cal     "setenv MGC_HOME /wv/icdet/work_areas/d_top_last/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_monday    "setenv MGC_HOME /wv/icdet/work_areas/d_monday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_tuesday   "setenv MGC_HOME /wv/icdet/work_areas/d_tuesday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_wednesday "setenv MGC_HOME /wv/icdet/work_areas/d_wednesday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_thursday  "setenv MGC_HOME /wv/icdet/work_areas/d_thursday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_friday    "setenv MGC_HOME /wv/icdet/work_areas/d_friday/ic/ic_superproj/${VCO}/Mgc_home"
+alias 8.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2008_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 9.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2009_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 9.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2009_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 9.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2009_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 9.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2009_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 10.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2010_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 10.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2010_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 10.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2010_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 10.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2010_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 11.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2011_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 11.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2011_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 11.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2011_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 11.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2011_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 12.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2012_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 12.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2012_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 12.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2012_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 12.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2012_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 13.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2013_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 13.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2013_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 13.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2013_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 16.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2016_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 16.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2016_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 16.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2016_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 16.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2016_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 17.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2017_4/ic/ic_superproj/${VCO}/Mgc_home"
+alias 18.1_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2018_1/ic/ic_superproj/${VCO}/Mgc_home"
+alias 18.2_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2018_2/ic/ic_superproj/${VCO}/Mgc_home"
+alias 18.3_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2018_3/ic/ic_superproj/${VCO}/Mgc_home"
+alias 18.4_cal "setenv MGC_HOME /wv/icdet/work_areas/calibre_2018_4/ic/ic_superproj/${VCO}/Mgc_home"
+
+alias aofbld 'setenv BUILD64 1; setenv VCO aof; setenv MACHINE_VCO aof; source ~/.cshrc; echo "VCO is now aof"'
+alias ixfbld 'setenv BUILD64 0; setenv VCO ixf; setenv MACHINE_VCO ixf; source ~/.cshrc; echo "VCO is now ixf"'
+alias use_ixl 'setenv BUILD64 1; setenv VCO ixl; setenv MACHINE_VCO ixl; source ~/.cshrc; echo "VCO is now ixl"'
+alias use_ixf 'setenv BUILD64 0; setenv VCO ixf; setenv MACHINE_VCO ixf; source ~/.cshrc; echo "VCO is now ixf"'
+alias use_aof 'setenv BUILD64 1; setenv VCO aof; setenv MACHINE_VCO aof; source ~/.cshrc; echo "VCO is now aof"'
+alias use_ixe 'setenv BUILD64 0; setenv VCO ixe; setenv MACHINE_VCO ixe; source ~/.cshrc; echo "VCO is now ixe"'
+alias use_aoe 'setenv BUILD64 1; setenv VCO aoe; setenv MACHINE_VCO aoe; source ~/.cshrc; echo "VCO is now aoe"'
+alias use_aog 'setenv BUILD64 1; setenv VCO aog; setenv MACHINE_VCO aog; source ~/.cshrc; echo "VCO is now aog"'
+alias use_aoi 'setenv BUILD64 1; setenv VCO aoi; setenv MACHINE_VCO aoi; source ~/.cshrc; setenv VCO aoi; echo "VCO is now aoi"; '
+
+alias DRC_STDIN "setenv MGC_UI_KEEP_STDIN_OPEN 1"
+
+alias goBIG_BUILD  'cd /wv/big_build_nobackup/djohnsen                          ; pwd'
+alias goSOURCE_DWA 'cd `readlink ${DWA_PATH}/my_latestDWA`/ic/lv/src            ; pwd'
+alias goASSERT_DWA 'cd `readlink ${DWA_PATH}/my_latestDWA`/ic/lv/${VCO}-assertr ; pwd'
+alias goDWA        'cd `readlink ${DWA_PATH}/my_latestDWA`/ic/lv/${VCO}         ; pwd'
+alias goMonthly    'cd ${DWA_PATH}/`readlink /wv/icdet/work_areas/latest_monthly`/ic/lv/${VCO} ; pwd'
+#alias goMonthly "cd /net/peak/scratch1/calibre/`readlink /wv/icdet/work_areas/latest_monthly`/ic/lv/${VCO} ; pwd"
+# alias goMonthly "cd ~/dwa/`readlink /wv/icdet/work_areas/latest_monthly`/ic/lv/${VCO} ; pwd"
+
+alias setEnv    "source ~/bin/cal_env"
+alias debugEnv  "source ~/bin/cal_env_debug"
+alias testEnv   "source ~/bin/test_env"
+
+alias lsco   "cm_status . | grep -v 'Updated file'"
+alias dputs  "vim ~/.calibre_devrc"
+
+alias ps_cal 'top `ps --no-headers -C memcheck-amd64 -C calibre_Xvfb -C calibrewb -C calibreldbv -C ldbview -C calibre -C calibrerve -o "-p %p "`'
+
+alias dirdiff 'bcompare -filters="-Isrc/;-CVS/"'
+
+alias qt_4.8.4 'source ~/bin/setQtVersion 4.8.4'
+alias qt_4.8.7 'source ~/bin/setQtVersion 4.8.7'
+alias qt_5.6.1 'source ~/bin/setQtVersion 5.6.1-1'
+alias qt_5.6.2 'source ~/bin/setQtVersion 5.6.2'
+alias qt_5.6.3 'source ~/bin/setQtVersion 5.6.3'
+alias qt_5.9.6 'source ~/bin/setQtVersion 5.9.6'
+alias qt_5.12.0 'source ~/bin/setQtVersion 5.12.0'
+alias qt_5.12.1 'source ~/bin/setQtVersion 5.12.1'
+alias qt_5.12.2 'source ~/bin/setQtVersion 5.12.2'
+alias qt_5.12.9 'source ~/bin/setQtVersion 5.12.9'
+alias qt_5.12.10 'source ~/bin/setQtVersion 5.12.10'
+alias newest_qtc qt_5.12.2
+alias use_qt 'source ~/bin/setQtVersion'
+
+alias qt_env 'source ~/bin/qt_env'
+alias qtc        '( newest_qtc ; qtcreator -lastsession )'
+alias qtc_cal    '( newest_qtc ; qtcreator calibre.creator )'
+alias qtc_noload '( newest_qtc ; qtcreator -lastsession -noload Welcome )'
+
+alias drv '${MGC_HOME}/bin/calibredrv'
+
+alias gmkae gmake
+alias awshrs 'ssh -i ~/.ssh/calaws.pem centos@139.181.176.100'
+
+alias use_gcc_6.2.0 'source use_cqi_compiler gcc-6.2.0'
+alias use_gcc_8.1.0 'source use_cqi_compiler gcc-8.1.0'
+
+alias ll 'ls -lv --color=auto'
+
+alias xterm-darkblue  'xterm -fg "#c0c0c0" -bg "#000040"'
+alias xterm-darkgreen 'xterm -fg "#c0c0c0" -bg "#003030"'
