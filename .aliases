@@ -21,7 +21,11 @@ alias ..='cd ..'
 
 
 alias du='du -kh'       # Makes a more readable output.
-alias df='df -kTh'
+if [[ "$(uname)" == "Darwin" ]]; then
+  alias df='df -kh'
+else
+  alias df='df -kTh'
+fi
 
 alias grep='grep --color=auto'
 
@@ -82,6 +86,18 @@ if [[ $(hostname -f) =~ 'mentorg' ]]; then
   alias toaster='cd /wv/toaster_builds'
   alias cwarn='cd /wv/src_renewal'
   alias src_renewal='cd /wv/src_renewal'
+fi
+
+# if copilot is installed, add some aliases for it
+if command -v copilot &> /dev/null; then
+  alias '??'='copilot -p'
+  alias 'cop'='copilot'
+  ## Quick shell suggestions (non-interactive)
+  # ?? "compress this directory"
+  # # Quick git help
+  # ?? "squash last 3 commits"
+  # # Interactive mode
+  # cop
 fi
 
 #if command -v nvim &> /dev/null; then

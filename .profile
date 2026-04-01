@@ -1,5 +1,12 @@
 
-THIS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Support both bash (BASH_SOURCE) and zsh ($0)
+if [ -n "$BASH_VERSION" ]; then
+    THIS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+elif [ -n "$ZSH_VERSION" ]; then
+    THIS_SCRIPT_DIR=$(cd "$(dirname "${(%):-%x}")" && pwd)
+else
+    THIS_SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+fi
 
 # if running bash
 if [ -n "$BASH_VERSION" ]; then
@@ -29,6 +36,9 @@ if [ -f /user/icdet/bin/calgrid.sh ]; then
     . /user/icdet/bin/calgrid.sh
 fi
 
+if [ -f $HOME/.env ]; then
+    source "$HOME/.env"
+fi
 
 export PATH
 PATH=""
@@ -44,11 +54,18 @@ POSSIBLE_PATHS=(
     /user/peteoss/${VCO}/bin
     /user/icdet/bin
     /snap/bin
+    /opt/homebrew/bin
+    /opt/homebrew/sbin
+    /usr/local/bin
+    /usr/local/sbin
     /bin
     /usr/bin
+    /sbin
+    /usr/sbin
     /usr/opt/bin
     /usr/opt/tv
     /user/pevtools/bin
+    ${HOME}/.local/bin
     ${THIS_SCRIPT_DIR}/Dotfiles/pushover/
     ${THIS_SCRIPT_DIR}/Dotfiles/bin/
     ${HOME}/.local/share/JetBrains/Toolbox/scripts

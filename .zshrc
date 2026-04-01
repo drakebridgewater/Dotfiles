@@ -1,22 +1,32 @@
-[[ "$TERM_PROGRAM" == "vscode" ]] && . "$(code --locate-shell-integration-path zsh)"
+if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
+  . "$(code --locate-shell-integration-path zsh)" 2>/dev/null
+fi
 
 # If not running interactively, don't do anything
 [[ $- == *i* ]] || return
 
+# Enable Powerlevel10k instant prompt (must be before ANY output)
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
+if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
+  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+fi
+
 # Warn  `SendEnv !TMUX` is not found in ssh config
-if [ -n "$SSH_CLIENT" ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config; then
+if [ -n "$SSH_CLIENT" ] && [ -f ~/.ssh/config ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config 2>/dev/null; then
   echo "Warning: 'SendEnv !TMUX' not found in ~/.ssh/config. This may cause issues with tmux."
 fi
 
 source $HOME/Dotfiles/.profile
 
-# Enable Powerlevel10k instant prompt
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
+if [[ -f /user/caldevtools/bin/load-devtools.sh ]]; then
+  . /user/caldevtools/bin/load-devtools.sh
 fi
 
 # Terminal settings for tmux to fix rendering issues
-export TERM="xterm-256color"
+# Only override TERM when not already inside tmux or screen
+if [[ -z "$TMUX" && "$TERM" != screen* && "$TERM" != tmux* ]]; then
+  export TERM="xterm-256color"
+fi
 alias tmux="TERM=xterm-256color tmux"
 
 # ssh-agent setup (must before sourcing oh-my-zsh)
@@ -110,6 +120,26 @@ done
 # This style defines the path where any cache files containing dumped completion data are stored.
 # https://zsh.sourceforge.io/Doc/Release/Completion-System.html#Standard-Styles
 zstyle ':completion:*' cache-path ${XDG_CACHE_HOME:-$HOME/.cache}/zsh/compcache
+zstyle ':completion:*' use-cache on
+# This style controls the behavior of the completion system when multiple matches are found. Setting it to 'select' will display a menu of possible completions and allow you to select one using the arrow keys.
+zmodload zsh/complist
+zstyle ':completion:*' menu select mouse
+zstyle ':completion:*' group-name ''
+zstyle ':completion:*:*:-command-:*:*' group-order alias builtins functions commands
+
+zstyle ':completion:*:descriptions' format '%F{green}-- %d --%f'
+zstyle ':completion:*:*:*:*:corrections' format '%F{yellow}!- %d (errors: %e) -!%f'
+zstyle ':completion:*:messages' format ' %F{purple} -- %d --%f'
+zstyle ':completion:*:warnings' format ' %F{red}-- no matches found --%f'
+# zstyle ':completion:*' file-list all
+
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+zstyle ':completion:*' squeeze-slashes true
+zstyle ':completion:*' complete-options true
+zstyle ':completion:*' glob '*'
+
+# -- Case-insensitive and dash/underscore-insensitive completion --
+# zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]-_}={[:upper:][:lower:]_-}'
 
 # [matcher-list] can be set to a list of match specifications that are to be applied everywhere
 # Case insensitivity and dash/underscore insensitivity
@@ -121,12 +151,30 @@ typeset -A match_specifications=(
   [nonseparators_after_any_before_separator]='r:?||[-_ \]=*'
   [separator_after_any]='l:?|=[-_ \]'
 )
-zstyle ':completion:*' glob '*'
-zstyle ':completion:*' matcher-list \
-  "$match_specifications[case_and_dash_insensitive] $match_specifications[any_before_dot] $match_specifications[any_before_word]" \
-  "+$match_specifications[nonseparators_after_any_before_separator] $match_specifications[separator_after_any]" \
-  "$match_specifications[case_and_dash_insensitive] $match_specifications[any_before_any]"
-unset match_specifications
+
+# matcher-list entries are tried left-to-right; completions from the first
+# spec that produces any match are shown.  A leading '+' means "augment the
+# previous pass" (i.e. keep its matches and add more from this spec).
+local _matchers=(
+  # Pass 1 – case & dash/underscore insensitive (e.g. my-func matches MyFunc)
+  "$match_specifications[case_and_dash_insensitive]"
+  # Pass 2 – any chars may precede a dot separator (e.g. "sf" matches "some.file")
+  "$match_specifications[any_before_dot]"
+  # Pass 3 – any chars may precede each typed word (prefix-anywhere matching)
+  "$match_specifications[any_before_word]"
+  # Pass 4 – combined with pass 3: non-separator chars can follow wildcards before a separator
+  "+$match_specifications[nonseparators_after_any_before_separator]"
+  # Pass 5 – separator characters (-, _, space) can follow a wildcard
+  "$match_specifications[separator_after_any]"
+  # Pass 6 – retry case & dash insensitive (catches cross-boundary mismatches)
+  # "$match_specifications[case_and_dash_insensitive]"
+  # Pass 7 – widest net: any chars may appear between any typed chars (fuzzy)
+  # "$match_specifications[any_before_any]"
+)
+
+zstyle ':completion:*' matcher-list "${_matchers[@]}"
+unset _matchers
+# unset match_specifications
 
 #===========================================================================
 # Source additional configuration files
@@ -134,21 +182,31 @@ unset match_specifications
 source $HOME/Dotfiles/.aliases
 
 #===========================================================================
-# Siemens EDA configuration
+# Siemens EDA configuration (only on Siemens hosts)
 #===========================================================================
-# emulate sh -c 'source /wv/iclvqa2/qa/bin/.aliases' || echo "Failed to source /wv/iclvqa2/qa/bin/.aliases"
-emulate sh -c 'source /wv/calgrid/sge/default/common/settings.sh' || echo "Failed to source /wv/calgrid/sge/default/common/settings.sh"
-emulate sh -c 'source /user/pete/bin/env_init.sh' || echo "Failed to source /user/pete/bin/env_init.sh"
+if [[ -d /usr/mgc || -d /wv ]]; then
+  # emulate sh -c 'source /wv/iclvqa2/qa/bin/.aliases' || echo "Failed to source /wv/iclvqa2/qa/bin/.aliases"
+  [[ -f /wv/calgrid/sge/default/common/settings.sh ]] && \
+    { emulate sh -c 'source /wv/calgrid/sge/default/common/settings.sh' || echo "Failed to source /wv/calgrid/sge/default/common/settings.sh"; }
+  [[ -f /user/pete/bin/env_init.sh ]] && \
+    { emulate sh -c 'source /user/pete/bin/env_init.sh' || echo "Failed to source /user/pete/bin/env_init.sh"; }
 
-export VCO=$(/usr/mgc/bin/mgcvco)
-export MGC_SERVER='/wv/mgc/mgc_server'
-export WG_SERVER='/wv/cal_wg_server'
+  [[ -x /usr/mgc/bin/mgcvco ]] && export VCO=$(/usr/mgc/bin/mgcvco)
+  [[ -d /wv/mgc/mgc_server ]] && export MGC_SERVER='/wv/mgc/mgc_server'
+  [[ -d /wv/cal_wg_server ]] && export WG_SERVER='/wv/cal_wg_server'
 
-if type lserver >/dev/null 2>&1; then
-  lserver set
-else
-  echo "lserver command not found, skipping lserver configuration."
+  if type lserver >/dev/null 2>&1; then
+    lserver set
+  fi
 fi
+
+#===========================================================================
+# Zsh Autosuggestions configuration
+#===========================================================================
+
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#663399,standout"
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
+ZSH_AUTOSUGGEST_USE_ASYNC=1
 
 #===========================================================================
 # Zinit Plugin Manager
@@ -203,6 +261,44 @@ if type zi >/dev/null 2>&1; then
 else
   echo "Zinit (zi) command not found, skipping Zinit plugins."
 fi
+
+#===========================================================================
+# UX Improvements
+#===========================================================================
+
+# -- History search with Up/Down arrows --
+# Type partial command, then Up/Down searches only matching history
+autoload -Uz up-line-or-beginning-search down-line-or-beginning-search
+zle -N up-line-or-beginning-search
+zle -N down-line-or-beginning-search
+bindkey "^[[A" up-line-or-beginning-search    # Up arrow
+bindkey "^[[B" down-line-or-beginning-search  # Down arrow
+bindkey "^[OA" up-line-or-beginning-search    # Up arrow (alternate escape code)
+bindkey "^[OB" down-line-or-beginning-search  # Down arrow (alternate escape code)
+
+# -- Edit command line in $EDITOR (Ctrl+X Ctrl+E) --
+autoload -Uz edit-command-line
+zle -N edit-command-line
+bindkey '^X^E' edit-command-line
+
+# -- Word navigation with Ctrl+Left/Right (works in tmux + SSH) --
+bindkey '^[[1;5D' backward-word   # Ctrl+Left
+bindkey '^[[1;5C' forward-word    # Ctrl+Right
+bindkey '^[b'     backward-word   # Alt+Left fallback
+bindkey '^[f'     forward-word    # Alt+Right fallback
+
+
+# -- Directory stack shortcut (works with AUTO_PUSHD) --
+# Type 'd' to see recent directories, then cd ~N to jump (e.g., cd ~3)
+alias d='dirs -v | head -20'
+
+# -- run-help: context-aware help for builtins (replaces man for zsh builtins) --
+unalias run-help 2>/dev/null
+autoload -Uz run-help
+alias help='run-help'
+
+# -- take: mkdir + cd in one step --
+take() { mkdir -p "$1" && cd "$1"; }
 
 # Load p10k configuration
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh

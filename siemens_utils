@@ -115,7 +115,7 @@ function finderror_json() {
             entering_dir_log_line = NR
         }
     }
-    /-o.*\.o/ {
+    /-o .*\.o/ {
         # extract only the .o part
         match($0, /-o ([^ ]*\.o)/, cmd_matches)
         if (cmd_matches[1] != "") {
@@ -165,7 +165,7 @@ function finderror_json() {
             delete buffer[i]
         }
     }
-    /\] Error / {
+    /\] Error / || /: ERROR / {
         error_count++
         if (error_count > 1) {
             print "    },"
@@ -355,22 +355,7 @@ function getBuildFlagsFromVCO() {
     return 1
   fi
   local flags=""
-  local remaining="$vco"
-
-  # Split on hyphens using parameter expansion
-  while [ -n "$remaining" ]; do
-    if [[ "$remaining" == *-* ]]; then
-      # Extract the part before the first hyphen
-      local part="${remaining%%-*}"
-      flags+="-T$part "
-      # Remove the part and the hyphen from remaining
-      remaining="${remaining#*-}"
-    else
-      # Last part (no more hyphens)
-      flags+="-T$remaining "
-      remaining=""
-    fi
-  done
+  flags=$(echo "$vco" | sed "s/-/ -T/g" | cut -d ' ' -f 2-)
   echo "$flags"
 }
 

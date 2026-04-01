@@ -35,7 +35,7 @@ tmux_conf_theme=enabled
 
 # Simplified color palette (fewer colors)
 tmux_conf_theme_colour_1="#080808"    # dark gray
-tmux_conf_theme_colour_2="#303030"    # gray
+tmux_conf_theme_colour_2="#4e4e4e"    # gray (inactive pane border)
 tmux_conf_theme_colour_3="#8a8a8a"    # light gray
 tmux_conf_theme_colour_4="#00afff"    # light blue
 tmux_conf_theme_colour_5="#ffff00"    # yellow
@@ -52,6 +52,25 @@ tmux_conf_theme_colour_15="#080808"   # dark gray
 tmux_conf_theme_colour_16="#d70000"   # red
 tmux_conf_theme_colour_17="#e4e4e4"   # white
 
+# # Window status tab styling (active tab = colour_4 blue, inactive = colour_3 gray)
+tmux_conf_theme_window_status_fg="#8a8a8a"          # inactive: light gray text
+tmux_conf_theme_window_status_bg="#080808"          # inactive: dark background
+tmux_conf_theme_window_status_attr="none"
+tmux_conf_theme_window_status_current_fg="#080808"  # active: dark text on blue
+tmux_conf_theme_window_status_current_bg="#00afff"  # active: light blue background
+tmux_conf_theme_window_status_current_attr="bold"
+tmux_conf_theme_window_status_activity_fg="#ffff00" # alert: yellow text
+tmux_conf_theme_window_status_activity_bg="#080808"
+tmux_conf_theme_window_status_activity_attr="bold"
+
+# Message style (command prompt / alerts)
+tmux_conf_theme_message_fg="#e4e4e4"                # white text
+tmux_conf_theme_message_bg="#00afff"                # light blue background
+tmux_conf_theme_message_attr="bold"
+tmux_conf_theme_message_command_fg="#e4e4e4"
+tmux_conf_theme_message_command_bg="#4C9900"        # green background
+tmux_conf_theme_message_command_attr="bold"
+
 # Window style
 tmux_conf_theme_window_fg="default"
 tmux_conf_theme_window_bg="default"
@@ -63,9 +82,9 @@ tmux_conf_theme_highlight_focused_pane=false
 tmux_conf_theme_pane_border_style=thin
 
 # Use simpler status line separators that work on all systems
-tmux_conf_theme_left_separator_main=""
+tmux_conf_theme_left_separator_main="|"
 tmux_conf_theme_left_separator_sub="|"
-tmux_conf_theme_right_separator_main=""
+tmux_conf_theme_right_separator_main="|"
 tmux_conf_theme_right_separator_sub="|"
 
 # Simplified status line content
@@ -73,14 +92,24 @@ tmux_conf_theme_status_left=" ❐ #S #{prefix_highlight}"
 tmux_conf_theme_status_right=" #{prefix}#{mouse}#{pairing}#{synchronized} | #[fg=green]#(~/.tmux/plugins/tmux-mem-cpu-load/tmux-mem-cpu-load -c -q -v -l 52 -r 33 -a 1) | %R | %d %b | #{username}#{root} | #{hostname} "
 # -- clipboard -----------------------------------------------------------------
 
-# Don't try to copy to OS clipboard (can be unreliable on some systems)
-# Set to true if you want this feature and have xsel/xclip installed
-tmux_conf_copy_to_os_clipboard=false
-
+# Copy mouse drag selections to OS clipboard (requires xsel or xclip)
+tmux_conf_copy_to_os_clipboard=true
 
 # -- general -------------------------------------------------------------------
 
+# xterm-keys only needed on tmux < 3.3
+%if #{<:#{version},3.3}
 setw -g xterm-keys on
+%endif
+
+# Performance & feel (Oh My Tmux does not override these)
+set -g status-interval 5
+set -g status-justify centre
+set -g display-time 1500
+set -s escape-time 10
+
+# Copy mode highlight (not managed by Oh My Tmux theme pipeline)
+setw -g mode-style "fg=#080808,bg=#00afff"
 
 # -- navigation ----------------------------------------------------------------
 
@@ -137,11 +166,21 @@ set -g history-limit 10000
 # Start with mouse mode enabled
 set -g mouse on
 
+# Use OSC 52 to send copied text back to the SSH client's clipboard (works with Termius/Windows over SSH)
+set -g set-clipboard on
+bind -T copy-mode-vi MouseDragEnd1Pane send -X copy-selection-and-cancel
+bind -T copy-mode MouseDragEnd1Pane send -X copy-selection-and-cancel
+
 # Terminal settings
 set -g default-terminal "screen-256color"
 set -sa terminal-overrides ",xterm-256color:RGB"
+# Declare OSC 52 clipboard support so tmux emits it over the SSH connection
+%if #{>=:#{version},3.2}
+set -ag terminal-features ",xterm-256color:clipboard"
+%endif
 set -g focus-events on
 setw -g aggressive-resize on
+
 
 # -- plugins -------------------------------------------------------------------
 
