@@ -69,6 +69,8 @@ POSSIBLE_PATHS=(
     ${THIS_SCRIPT_DIR}/Dotfiles/pushover/
     ${THIS_SCRIPT_DIR}/Dotfiles/bin/
     ${HOME}/.local/share/JetBrains/Toolbox/scripts
+    /boot/config/Dotfiles/bin
+    /boot/config/Dotfiles/pushover
 )
 
 for p in "${POSSIBLE_PATHS[@]}"; do

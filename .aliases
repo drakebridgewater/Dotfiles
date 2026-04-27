@@ -257,3 +257,17 @@ END {
 }
 ' "$@"
 }
+
+#===========================================================================
+# Unraid-specific aliases (inside Unraid Docker shell or on Unraid host)
+#===========================================================================
+if [ -f /boot/config/ident.cfg ] || [ "$UNRAID" = "true" ]; then
+  alias unraid-log='tail -f /var/log/syslog'
+  alias unraid-docker='docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"'
+  alias unraid-shares='ls -la /mnt/user/'
+  alias unraid-disks='df -h /mnt/disk* /mnt/cache* 2>/dev/null'
+  alias unraid-array='mdcmd status 2>/dev/null || echo "mdcmd not available"'
+  alias unraid-go='${EDITOR:-vim} /boot/config/go'
+  alias unraid-plugins='ls /boot/config/plugins/'
+  alias unraid-ip='ip -4 addr show | grep -oP "(?<=inet\s)\d+(\.\d+){3}" | grep -v 127.0.0.1'
+fi

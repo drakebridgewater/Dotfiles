@@ -13,23 +13,6 @@ if [ -z "$INPUT_HOME_DIR" ]; then
     exit 1
 fi
 
-function check_same_filesystem {
-    local src_file="$1"
-    local dest_file="$2"
-
-    local src_dev
-    local dest_dev
-
-    src_dev=$(stat -c %d "$src_file")
-    dest_dev=$(stat -c %d "$dest_file")
-
-    if [ "$src_dev" -ne "$dest_dev" ]; then
-        return 1
-    else
-        return 0
-    fi
-}
-
 if [ ! -d "$INPUT_HOME_DIR" ]; then
     echo "Error: Home directory '$INPUT_HOME_DIR' does not exist."
     exit 1
@@ -37,13 +20,6 @@ fi
 
 SCRIPT_DIR="$(realpath "$SCRIPT_DIR")"
 INPUT_HOME_DIR="$(realpath "$INPUT_HOME_DIR")"
-
-check_same_filesystem "$SCRIPT_DIR" "$INPUT_HOME_DIR"
-if [ $? -ne 0 ]; then
-    echo "Error: '$SCRIPT_DIR' and '$INPUT_HOME_DIR' are not on the same filesystem."
-    exit 1
-
-fi
 
 NAMES_TO_SKIP=(".git" ".gitignore" ".DS_Store" ".idea" ".mypy_cache" "." "..")
 

@@ -1,0 +1,28 @@
+services:
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dotfiles-shell
+    hostname: unraid-shell
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      # Mount Dotfiles repo (read-only source of truth)
+      - /boot/config/Dotfiles:/root/Dotfiles:ro
+      # Persist shell state across container recreates
+      - shell_history:/root/.history_persist
+      # SSH keys from Unraid host
+      - /root/.ssh:/root/.ssh:ro
+      # Access to Docker socket for container management
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Access to Unraid shares
+      - /mnt/user:/mnt/user
+    environment:
+      - TERM=xterm-256color
+      - UNRAID=true
+
+volumes:
+  shell_history:

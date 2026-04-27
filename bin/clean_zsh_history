@@ -1,0 +1,54 @@
+#!/bin/bash
+
+ZSH_HISTORY_FILE="${HISTFILE:-$HOME/.zsh_history}"
+TEMP_HISTORY_FILE=$(mktemp)
+
+echo "--- Zsh History Cleaner ---"
+echo "Targeting: ${ZSH_HISTORY_FILE}"
+
+# 1. Backup the original history file
+if [[ -f "${ZSH_HISTORY_FILE}" ]]; then
+    cp "${ZSH_HISTORY_FILE}" "${ZSH_HISTORY_FILE}.bak"
+    echo "Backup created at: ${ZSH_HISTORY_FILE}.bak"
+else
+    echo "Error: Zsh history file not found at ${ZSH_HISTORY_FILE}. Exiting."
+    exit 1
+fi
+
+echo "Processing history file to identify and remove multiline entries..."
+
+# Zsh multiline history format:
+#   : 1713300000:0;first line of command\
+#   continuation line\
+#   last line
+# Multiline entries have a trailing \ on all lines except the last,
+# and continuation lines lack the ": timestamp:elapsed;" prefix.
+
+awk '{
+    if (/^: [0-9]+:[0-9]+;/) {
+        # New history entry — check if it starts a multiline block
+        if (/\\$/) {
+            skip = 1
+            next
+        }
+        skip = 0
+        print
+        next
+    }
+    # Continuation line (no timestamp prefix)
+    if (skip) {
+        if (!/\\$/) skip = 0
+        next
+    }
+    print
+}' "${ZSH_HISTORY_FILE}" > "${TEMP_HISTORY_FILE}"
+
+# 3. Replace the original history file with the cleaned version
+mv "${TEMP_HISTORY_FILE}" "${ZSH_HISTORY_FILE}"
+echo "Cleaned history saved to: ${ZSH_HISTORY_FILE}"
+
+# 4. Advise user to reload history
+echo "To reload history in your current zsh session, run:"
+echo "  fc -R ${ZSH_HISTORY_FILE}"
+
+echo "--- Cleaning complete ---"
