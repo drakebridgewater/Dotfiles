@@ -5,7 +5,7 @@ Personal dotfiles for macOS, Linux, and Unraid. Source the same shell configurat
 ## Supported Platforms
 
 | Platform | Setup Script | Notes |
-|----------|-------------|-------|
+| ---------- | ------------- | ------- |
 | macOS | `MacOS/mac_setup.sh` | Homebrew-based package installation |
 | RHEL/Rocky 8 | `rhel8_setup.sh` | dnf-based setup with module streams |
 | Unraid | `Unraid/unraid_setup.sh` | Docker container with full shell environment |
@@ -40,7 +40,7 @@ The setup script registers a boot hook in `/boot/config/go` that auto-starts the
 
 ## Structure
 
-```
+```text
 .zshrc              # Main zsh config (sources .profile and .aliases)
 .zshrc.legacy       # Fallback for zsh < 5.1 (RHEL 7)
 .bashrc             # Bash config
@@ -56,7 +56,7 @@ setup_dotfile_symlinks  # Creates symlinks from repo into $HOME
 
 ### Platform-Specific Directories
 
-```
+```text
 MacOS/              # macOS Homebrew setup
 Unraid/             # Unraid Docker container setup + boot scripts
 Windows/            # Windows/PowerShell setup

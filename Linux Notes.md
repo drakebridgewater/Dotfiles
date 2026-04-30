@@ -1,3 +1,4 @@
+# Linux Notes
 
 ## Output rate in terminal
 
@@ -64,7 +65,7 @@ WantedBy=multi-user.target
 * Start the service: systemctl start service_name
 * If modification are done to the service you can run: systemctl reload service_name
 
-# MySQL
+## MySQL
 
 * Add user:
   * `create user ‘mars’@’%’ identified by ‘DANGER_I_KNOW_THE_RISKS’;`
@@ -88,6 +89,6 @@ ORDER BY column_1
 LIMIT offset, length;
 ```
 
-# TMUX Stuff
+## TMUX Stuff
 
 Synchronized input on all panes in window: prefix then :setw synchronize-panes

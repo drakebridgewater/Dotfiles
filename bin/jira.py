@@ -240,11 +240,6 @@ class IssueKey:
     def __str__(self) -> str:
         return self.issue_key_str
 
-    def __repr__(self) -> str:
-        from mars.util import function_repr
-
-        return function_repr(self)
-
     def __eq__(self, other: Any) -> bool:
         if type(other) is not type(self):
             return NotImplemented
@@ -319,7 +314,3 @@ class Release:
         self.server.rest_put(uri=f'version/{self.id}', params={"released": True, "releaseDate": release_date.strftime('%Y-%m-%d')})
         self.release_date = release_date
 
-    def __repr__(self) -> str:
-        from mars.util import function_repr
-
-        return function_repr(self, attr_names=('id', 'version', 'release_date'))

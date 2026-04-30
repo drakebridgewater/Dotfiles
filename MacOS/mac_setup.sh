@@ -232,9 +232,9 @@ echo "Setting up keyboard shortcuts for external keyboards..."
 mkdir -p ~/Library/KeyBindings
 
 # Create DefaultKeyBinding.dict if it doesn't exist
-if [ ! -f "$HOME/Dotfiles/DefaultKeyBinding.dict" ]; then
+if [ ! -f "$HOME/Library/KeyBindings/DefaultKeyBinding.dict" ]; then
   echo "Creating DefaultKeyBinding.dict..."
-  cat >~/Library/KeyBindings/DefaultKeyBinding.dict <<EOF
+  cat >"$HOME/Library/KeyBindings/DefaultKeyBinding.dict" <<EOF
 {
     /* Home Button*/
     "\UF729" = "moveToBeginningOfLine:";
@@ -254,8 +254,6 @@ if [ ! -f "$HOME/Dotfiles/DefaultKeyBinding.dict" ]; then
     "$^\UF72B" = "moveToEndOfDocumentAndModifySelection:";
 }
 EOF
-else
-  cp "$HOME/Dotfiles/DefaultKeyBinding.dict" ~/Library/KeyBindings/DefaultKeyBinding.dict
 fi
 
 # Final cleanup and verification

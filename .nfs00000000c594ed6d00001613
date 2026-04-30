@@ -3,25 +3,15 @@ if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
 fi
 
 # If not running interactively, don't do anything
-case $- in
-    *i*) ;;
-      *) return;;
-esac
-
-# Detect old zsh (< 5.1) and use a stripped-down config instead.
-# zsh 5.0.2 (RHEL 7) lacks support for P10k, Zinit, async autosuggestions,
-# and 'menu select mouse' completions.
-autoload -Uz is-at-least
-if ! is-at-least 5.1; then
-  source "$HOME/Dotfiles/.zshrc.legacy"
-  return
-fi
+[[ $- == *i* ]] || return
 
 # Enable Powerlevel10k instant prompt (must be before ANY output)
 mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
+
+TMPDIR
 
 # Warn  `SendEnv !TMUX` is not found in ssh config
 if [ -n "$SSH_CLIENT" ] && [ -f ~/.ssh/config ] && ! grep -q 'SendEnv !TMUX' ~/.ssh/config 2>/dev/null; then
@@ -126,11 +116,6 @@ for option in "${ALL_OPTIONS[@]}"; do
     setopt "$option"  2> /dev/null || echo "setopt $option not found, skipping $option option."
 done
 
-# # Prevent multiline commands from being saved to history
-# zshaddhistory() {
-#   [[ "$1" != *$'\n'* ]]
-# }
-
 # disable correct on specific commands
 # alias docker='nocorrect docker'
 
@@ -183,9 +168,9 @@ local _matchers=(
   "+$match_specifications[nonseparators_after_any_before_separator]"
   # Pass 5 – separator characters (-, _, space) can follow a wildcard
   "$match_specifications[separator_after_any]"
-  # Pass 6 – retry case & dash insensitive (catches cross-boundary mismatches). 
+  # Pass 6 – retry case & dash insensitive (catches cross-boundary mismatches)
   # "$match_specifications[case_and_dash_insensitive]"
-  # Pass 7 – widest net: any chars may appear between any typed chars (fuzzy). 
+  # Pass 7 – widest net: any chars may appear between any typed chars (fuzzy)
   # "$match_specifications[any_before_any]"
 )
 
@@ -292,12 +277,6 @@ bindkey "^[[A" up-line-or-beginning-search    # Up arrow
 bindkey "^[[B" down-line-or-beginning-search  # Down arrow
 bindkey "^[OA" up-line-or-beginning-search    # Up arrow (alternate escape code)
 bindkey "^[OB" down-line-or-beginning-search  # Down arrow (alternate escape code)
-
-# -- Home/End keys for line navigation --
-bindkey "^[[H" beginning-of-line    # Home
-bindkey "^[[F" end-of-line          # End
-bindkey "^[OH" beginning-of-line    # Home (alternate escape code)
-bindkey "^[OF" end-of-line          # End (alternate escape code)
 
 # -- Edit command line in $EDITOR (Ctrl+X Ctrl+E) --
 autoload -Uz edit-command-line
