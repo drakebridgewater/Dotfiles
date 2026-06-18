@@ -45,6 +45,7 @@ PATH=""
 
 POSSIBLE_PATHS=(
     ${HOME}/bin
+    /usr/local/bin
     /user/gitdet/bin
     /usr/mgc/bin
     /usr/mgc/peteoss/bin

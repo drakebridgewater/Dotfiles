@@ -327,4 +327,5 @@ take() { mkdir -p "$1" && cd "$1"; }
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
 # tmux-git-autofetch() {(/home/drabri2r/.tmux/plugins/tmux-git-autofetch/git-autofetch.tmux --current &)}
 # add-zsh-hook chpwd tmux-git-autofetch
-
+eval "$(/opt/homebrew/bin/brew shellenv)"
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
