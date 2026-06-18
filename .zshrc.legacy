@@ -14,11 +14,17 @@ if [[ -f /user/caldevtools/bin/load-devtools.sh ]]; then
 fi
 
 # Terminal settings for tmux to fix rendering issues
-# Only override TERM when not already inside tmux or screen
-if [[ -z "$TMUX" && "$TERM" != screen* && "$TERM" != tmux* ]]; then
-  export TERM="xterm-256color"
+# Force a basic TERM for RHEL7 to avoid display issues
+if [[ "$(uname -r)" == *el7* ]]; then
+    export TERM="xterm"
+else
+    # Only override TERM when not already inside tmux or screen
+    if [[ -z "$TMUX" && "$TERM" != screen* && "$TERM" != tmux* ]]; then
+      export TERM="xterm-256color"
+    elif [[ -n "$TMUX" ]]; then
+      export TERM="screen-256color"
+    fi
 fi
-alias tmux="TERM=xterm-256color tmux"
 
 # ssh-agent setup (must before sourcing oh-my-zsh)
 zstyle :omz:plugins:ssh-agent agent-forwarding yes
@@ -68,7 +74,6 @@ POSSIBLE_HISTORY_OPTIONS=(
   HIST_REDUCE_BLANKS
   HIST_SAVE_NO_DUPS
   HIST_VERIFY
-  INC_APPEND_HISTORY_TIME  # zsh 5.0.6+ — will be skipped gracefully
   HIST_NO_FUNCTIONS
 )
 
@@ -114,26 +119,6 @@ zstyle ':completion:*' squeeze-slashes true
 zstyle ':completion:*' complete-options true
 zstyle ':completion:*' glob '*'
 
-# Case-insensitive and dash/underscore-insensitive completion
-typeset -A match_specifications=(
-  [any_before_any]='r:|?=**'
-  [any_before_dot]='r:|[.]=**'
-  [any_before_word]='l:|=*'
-  [case_and_dash_insensitive]='m:{[:lower:][:upper:]-_}={[:upper:][:lower:]_-}'
-  [nonseparators_after_any_before_separator]='r:?||[-_ \]=*'
-  [separator_after_any]='l:?|=[-_ \]'
-)
-
-local _matchers=(
-  "$match_specifications[case_and_dash_insensitive]"
-  "$match_specifications[any_before_dot]"
-  "$match_specifications[any_before_word]"
-  "+$match_specifications[nonseparators_after_any_before_separator]"
-  "$match_specifications[separator_after_any]"
-)
-
-zstyle ':completion:*' matcher-list "${_matchers[@]}"
-unset _matchers
 
 #===========================================================================
 # Source additional configuration files

@@ -66,8 +66,9 @@ POSSIBLE_PATHS=(
     /usr/opt/tv
     /user/pevtools/bin
     ${HOME}/.local/bin
-    ${THIS_SCRIPT_DIR}/Dotfiles/pushover/
-    ${THIS_SCRIPT_DIR}/Dotfiles/bin/
+    ${THIS_SCRIPT_DIR}/pushover
+    ${THIS_SCRIPT_DIR}/bin
+    ${THIS_SCRIPT_DIR}/siemens/bin
     ${HOME}/.local/share/JetBrains/Toolbox/scripts
     /boot/config/Dotfiles/bin
     /boot/config/Dotfiles/pushover

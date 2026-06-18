@@ -158,7 +158,7 @@ def add_badge(group, x, y, text, style="review", theme=None):
         bg_opacity = 0.15
         text_fill = theme["primary_medium"]
     elif style == "closed":
-        bg_fill = theme["primary_medium"]
+        bg_fill = theme["primary_dark"]
         bg_opacity = 0.15
         text_fill = theme["primary_medium"]
     elif style == "opened":
@@ -180,6 +180,45 @@ def add_badge(group, x, y, text, style="review", theme=None):
     ))
     add_text(group, x + width / 2, y + 11, text,
              font_size=9, fill=text_fill, font_weight="600", text_anchor="middle")
+
+
+def add_legend_arrow(group, x, y, direction="right", length=16, stroke="#8C9EA3", stroke_width=1.4):
+    """Add a horizontal arrow connector for legend entries."""
+    if direction not in {"left", "right"}:
+        direction = "right"
+
+    half = length / 2
+    start_x = x - half
+    end_x = x + half
+    head = min(4.0, length / 3)
+
+    group.add(svgwrite.shapes.Line(
+        start=(start_x, y), end=(end_x, y),
+        stroke=stroke, stroke_width=stroke_width, stroke_linecap="round"
+    ))
+
+    if direction == "right":
+        tip_x = end_x
+        wing_x = tip_x - head
+    else:
+        tip_x = start_x
+        wing_x = tip_x + head
+
+    group.add(svgwrite.shapes.Line(
+        start=(wing_x, y - head), end=(tip_x, y),
+        stroke=stroke, stroke_width=stroke_width, stroke_linecap="round"
+    ))
+    group.add(svgwrite.shapes.Line(
+        start=(wing_x, y + head), end=(tip_x, y),
+        stroke=stroke, stroke_width=stroke_width, stroke_linecap="round"
+    ))
+
+
+def estimate_legend_text_width(text, char_width=6.0, space_width=3.2):
+    """Estimate legend text width with tighter spacing than len(text) * 7."""
+    spaces = text.count(" ")
+    letters = len(text) - spaces
+    return letters * char_width + spaces * space_width
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -392,15 +431,15 @@ class Card(Entity):
         h = 60
         # Items
         for item in items:
-            h += 26
+            h += 22
             if item.get("reason"):
                 h += 14
             children = normalize_children(item.get("children", []))
             h += 18 * len(children)
         # Footer
         h += 14 * len(footer)
-        # Padding bottom
-        h += 10
+        # Bottom padding tuned to keep short cards balanced while reducing large-card tail gaps.
+        h += 14
         return h
 
     def estimate_height(self, width, theme):
@@ -679,13 +718,18 @@ class Legend(Entity):
 
     def render(self, dwg, group, x, y, width, theme):
         items = self.data.get("items", [])
+        default_gap = self.data.get("gap", 14)
+        arrow_gap = self.data.get("arrow_gap", 6)
         cx = x
         cy = y + 6
 
-        for item in items:
+        for i, item in enumerate(items):
             item_type = item.get("type", "circle")
             label = item.get("label", "")
             style = item.get("style", "upcoming")
+            next_item = items[i + 1] if i + 1 < len(items) else None
+            next_item_type = next_item.get("type") if isinstance(next_item, dict) else None
+            item_width = 0
 
             if item_type == "circle":
                 if style == "complete":
@@ -703,12 +747,35 @@ class Legend(Entity):
                 add_text(group, cx + 22, cy + 4, label,
                          font_size=11, fill=theme["text_muted"],
                          font_family=theme["font_family"])
-                cx += len(label) * 7 + 40
+                label_width = estimate_legend_text_width(label)
+                content_width = 22 + label_width
+                gap_after = arrow_gap if next_item_type == "arrow" else default_gap
+                item_width = content_width + gap_after
 
             elif item_type == "badge":
                 badge_style = item.get("badge_style", "review")
+                badge_width = max(50, len(label) * 7 + 16)
                 add_badge(group, cx, cy - 7, label, badge_style, theme)
-                cx += max(50, len(label) * 7 + 16) + 15
+                gap_after = arrow_gap if next_item_type == "arrow" else default_gap
+                item_width = badge_width + gap_after
+
+            elif item_type == "arrow":
+                direction = item.get("direction", "right")
+                arrow_length = max(8, float(item.get("length", 16)))
+                arrow_color = item.get("color", theme["text_secondary"])
+                add_legend_arrow(
+                    group,
+                    x=cx + arrow_length / 2,
+                    y=cy,
+                    direction=direction,
+                    length=arrow_length,
+                    stroke=arrow_color,
+                )
+                gap_after = arrow_gap if next_item_type else 0
+                item_width = arrow_length + gap_after
+
+            if item_width > 0:
+                cx += item_width
 
         return 20
 

@@ -181,6 +181,8 @@ set -ag terminal-features ",xterm-256color:clipboard"
 set -g focus-events on
 setw -g aggressive-resize on
 
+set -g @resurrect-save 'S'
+set -g @resurrect-restore 'R'
 
 # -- plugins -------------------------------------------------------------------
 

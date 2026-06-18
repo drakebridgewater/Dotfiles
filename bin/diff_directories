@@ -1,0 +1,265 @@
+#!/bin/bash
+#
+# diff_directories - Compare two directory trees with readable reports.
+#
+# Generates:
+#   - only in left
+#   - only in right
+#   - common paths that differ (type/size, and optionally checksum)
+#
+
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: diff_directories [options] <left_dir> <right_dir>
+
+Compare two directory trees and write structured diff reports.
+
+Options:
+  -o, --out-prefix <path>   Output file prefix (default: ./dir_diff_<timestamp>)
+  -x, --exclude <pattern>   Exclude path pattern (repeatable). Pattern is matched
+                            against paths relative to each root, prefixed with ./
+                            (example: './.git*' or './*/obj/*').
+  -c, --checksum            Compare SHA-256 for common regular files.
+                            Without this, comparison uses path + type + size.
+  -h, --help                Show this help text.
+
+Outputs:
+  <prefix>.left.only
+  <prefix>.right.only
+  <prefix>.changed
+  <prefix>.left.manifest.tsv
+  <prefix>.right.manifest.tsv
+  <prefix>.manifest.diff
+
+Exit code:
+  0 if trees are equivalent under selected comparison mode.
+  1 if differences are found.
+  2 for usage or runtime errors.
+EOF
+}
+
+require_cmd() {
+    local cmd="$1"
+    if ! command -v "$cmd" >/dev/null 2>&1; then
+        echo "Error: required command not found: $cmd" >&2
+        return 1
+    fi
+}
+
+LEFT_DIR=""
+RIGHT_DIR=""
+OUT_PREFIX=""
+CHECKSUM=0
+declare -a EXCLUDES
+EXCLUDES=("./.git*" "./.svn*")
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -o|--out-prefix)
+            [[ -n "${2:-}" ]] || { echo "Error: missing value for $1" >&2; usage; exit 2; }
+            OUT_PREFIX="$2"
+            shift 2
+            ;;
+        -x|--exclude)
+            [[ -n "${2:-}" ]] || { echo "Error: missing value for $1" >&2; usage; exit 2; }
+            EXCLUDES+=("$2")
+            shift 2
+            ;;
+        -c|--checksum)
+            CHECKSUM=1
+            shift
+            ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "Error: unknown option: $1" >&2
+            usage
+            exit 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $# -ne 2 ]]; then
+    echo "Error: expected exactly two directory arguments." >&2
+    usage
+    exit 2
+fi
+
+LEFT_DIR="$1"
+RIGHT_DIR="$2"
+
+require_cmd find
+require_cmd sort
+require_cmd comm
+require_cmd join
+require_cmd awk
+require_cmd diff
+require_cmd stat
+if [[ "$CHECKSUM" -eq 1 ]]; then
+    require_cmd sha256sum
+fi
+
+if [[ ! -d "$LEFT_DIR" ]]; then
+    echo "Error: left_dir is not a directory: $LEFT_DIR" >&2
+    exit 2
+fi
+if [[ ! -d "$RIGHT_DIR" ]]; then
+    echo "Error: right_dir is not a directory: $RIGHT_DIR" >&2
+    exit 2
+fi
+
+LEFT_DIR="$(realpath "$LEFT_DIR")"
+RIGHT_DIR="$(realpath "$RIGHT_DIR")"
+
+if [[ -z "$OUT_PREFIX" ]]; then
+    OUT_PREFIX="$(pwd)/dir_diff_$(date +%Y%m%d_%H%M%S)"
+else
+    OUT_PREFIX="$(realpath -m "$OUT_PREFIX")"
+fi
+
+OUT_DIR="$(dirname "$OUT_PREFIX")"
+mkdir -p "$OUT_DIR"
+
+TMP_DIR="$(mktemp -d)"
+cleanup() {
+    rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
+build_path_list() {
+    local root_dir="$1"
+    local output_file="$2"
+
+    (
+        cd "$root_dir"
+        find . -mindepth 1 -printf '%P\n'
+    ) | while IFS= read -r rel_path; do
+        local skip=0
+        local candidate="./$rel_path"
+        local pattern
+
+        for pattern in "${EXCLUDES[@]}"; do
+            case "$candidate" in
+                $pattern)
+                    skip=1
+                    break
+                    ;;
+            esac
+        done
+
+        if [[ "$skip" -eq 0 ]]; then
+            printf '%s\n' "$rel_path"
+        fi
+    done | LC_ALL=C sort > "$output_file"
+}
+
+build_manifest() {
+    local root_dir="$1"
+    local paths_file="$2"
+    local manifest_file="$3"
+
+    : > "$manifest_file"
+
+    while IFS= read -r rel_path; do
+        [[ -n "$rel_path" ]] || continue
+
+        local abs_path
+        abs_path="$root_dir/$rel_path"
+
+        local type=""
+        local size="-"
+        local hash="-"
+
+        if [[ -L "$abs_path" ]]; then
+            type="L"
+            # Hash symlink target text in checksum mode so retargeting is detected.
+            if [[ "$CHECKSUM" -eq 1 ]]; then
+                hash="$(readlink "$abs_path" | sha256sum | awk '{print $1}')"
+            fi
+        elif [[ -f "$abs_path" ]]; then
+            type="F"
+            size="$(stat -c '%s' "$abs_path")"
+            if [[ "$CHECKSUM" -eq 1 ]]; then
+                hash="$(sha256sum "$abs_path" | awk '{print $1}')"
+            fi
+        elif [[ -d "$abs_path" ]]; then
+            type="D"
+        else
+            type="O"
+        fi
+
+        printf '%s\t%s\t%s\t%s\n' "$rel_path" "$type" "$size" "$hash" >> "$manifest_file"
+    done < "$paths_file"
+}
+
+LEFT_PATHS="$TMP_DIR/left.paths"
+RIGHT_PATHS="$TMP_DIR/right.paths"
+LEFT_MANIFEST="$OUT_PREFIX.left.manifest.tsv"
+RIGHT_MANIFEST="$OUT_PREFIX.right.manifest.tsv"
+LEFT_ONLY="$OUT_PREFIX.left.only"
+RIGHT_ONLY="$OUT_PREFIX.right.only"
+CHANGED="$OUT_PREFIX.changed"
+MANIFEST_DIFF="$OUT_PREFIX.manifest.diff"
+
+build_path_list "$LEFT_DIR" "$LEFT_PATHS"
+build_path_list "$RIGHT_DIR" "$RIGHT_PATHS"
+
+build_manifest "$LEFT_DIR" "$LEFT_PATHS" "$LEFT_MANIFEST"
+build_manifest "$RIGHT_DIR" "$RIGHT_PATHS" "$RIGHT_MANIFEST"
+
+LC_ALL=C comm -23 "$LEFT_PATHS" "$RIGHT_PATHS" > "$LEFT_ONLY"
+LC_ALL=C comm -13 "$LEFT_PATHS" "$RIGHT_PATHS" > "$RIGHT_ONLY"
+
+LC_ALL=C join -t $'\t' -1 1 -2 1 "$LEFT_MANIFEST" "$RIGHT_MANIFEST" | \
+    awk -F '\t' '($2 != $5 || $3 != $6 || $4 != $7) {
+        printf "%s\tleft(type=%s,size=%s,hash=%s)\tright(type=%s,size=%s,hash=%s)\n", $1, $2, $3, $4, $5, $6, $7
+    }' > "$CHANGED"
+
+diff -u "$LEFT_MANIFEST" "$RIGHT_MANIFEST" > "$MANIFEST_DIFF" || true
+
+count_lines() {
+    local file="$1"
+    if [[ -s "$file" ]]; then
+        wc -l < "$file"
+    else
+        echo 0
+    fi
+}
+
+LEFT_ONLY_COUNT="$(count_lines "$LEFT_ONLY")"
+RIGHT_ONLY_COUNT="$(count_lines "$RIGHT_ONLY")"
+CHANGED_COUNT="$(count_lines "$CHANGED")"
+
+echo "Directory diff summary"
+echo "  left:  $LEFT_DIR"
+echo "  right: $RIGHT_DIR"
+echo "  checksum_mode: $CHECKSUM"
+echo ""
+echo "  only_in_left:  $LEFT_ONLY_COUNT"
+echo "  only_in_right: $RIGHT_ONLY_COUNT"
+echo "  changed:       $CHANGED_COUNT"
+echo ""
+echo "Report files"
+echo "  $LEFT_ONLY"
+echo "  $RIGHT_ONLY"
+echo "  $CHANGED"
+echo "  $LEFT_MANIFEST"
+echo "  $RIGHT_MANIFEST"
+echo "  $MANIFEST_DIFF"
+
+if [[ "$LEFT_ONLY_COUNT" -eq 0 && "$RIGHT_ONLY_COUNT" -eq 0 && "$CHANGED_COUNT" -eq 0 ]]; then
+    exit 0
+fi
+
+exit 1
