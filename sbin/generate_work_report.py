@@ -763,6 +763,19 @@ def _comment_preview(comments: list, max_comment_len: int = 100) -> str:
     return '; '.join(entries) if entries else '—'
 
 
+def _jira_changes_cell(issue: dict) -> str:
+    """Render what changed for an issue this period: the in-window transition chain.
+
+    Falls back to '—' when no status change happened in the window (the issue was
+    still touched — e.g. a comment — which is why it appears at all).
+    """
+    changes = str(issue.get('status_changes', '')).strip()
+    if not changes:
+        return '—'
+    date = str(issue.get('status_changed', '')).strip()
+    return f'{changes} ({date})' if date else changes
+
+
 def _group_jira_issues_by_epic(jira_issues: list) -> list:
     """Group Jira issues by parent epic while preserving issue order."""
     groups = []
@@ -835,6 +848,62 @@ def _extract_current_status_changed_at(issue_data: dict, current_status: str, fa
                     return changed_at
 
     return _parse_jira_timestamp(fallback_timestamp)
+
+
+def _extract_status_transitions_in_window(issue_data: dict, cutoff) -> list:
+    """Return status transitions that occurred on/after ``cutoff``.
+
+    Each entry is {'from', 'to', 'date'} (oldest first). This captures *what
+    changed* during the reporting window rather than just the current status.
+    """
+    changelog = issue_data.get('changelog', {}) if isinstance(issue_data, dict) else {}
+    histories = changelog.get('histories', []) if isinstance(changelog, dict) else []
+    if not isinstance(histories, list):
+        return []
+
+    transitions = []
+    for history in histories:
+        if not isinstance(history, dict):
+            continue
+        changed_at = _parse_jira_timestamp(history.get('created', ''))
+        if changed_at is None:
+            continue
+        if changed_at.tzinfo is None:
+            changed_at = changed_at.replace(tzinfo=timezone.utc)
+        if cutoff is not None and changed_at < cutoff:
+            continue
+
+        for item in history.get('items', []):
+            if not isinstance(item, dict):
+                continue
+            if str(item.get('field', '')).strip().lower() != 'status':
+                continue
+            transitions.append({
+                'from': str(item.get('fromString', '') or '').strip(),
+                'to': str(item.get('toString', '') or '').strip(),
+                'date': changed_at.date().isoformat(),
+            })
+
+    transitions.sort(key=lambda t: t['date'])
+    return transitions
+
+
+def _format_status_transitions(transitions: list) -> str:
+    """Render in-window transitions as a compact chain, e.g. 'Opened → Review → Closed'."""
+    if not transitions:
+        return ''
+
+    chain = []
+    first_from = transitions[0].get('from', '')
+    if first_from:
+        chain.append(first_from)
+    for t in transitions:
+        to_status = t.get('to', '')
+        if to_status and (not chain or chain[-1] != to_status):
+            chain.append(to_status)
+
+    return ' → '.join(chain)
+
 
 def query_jira(config: dict, days: int) -> list:
     """Query Jira for issues the user worked on."""
@@ -925,6 +994,7 @@ def query_jira(config: dict, days: int) -> list:
         status_changed_at = _extract_current_status_changed_at(issue_data, status, fallback_status_change)
         if status_changed_at and status_changed_at.tzinfo is None:
             status_changed_at = status_changed_at.replace(tzinfo=timezone.utc)
+        status_transitions = _extract_status_transitions_in_window(issue_data, cutoff)
 
         # Filter comments by author and date
         my_comments = []
@@ -956,6 +1026,8 @@ def query_jira(config: dict, days: int) -> list:
             'summary': summary,
             'status': status,
             'status_changed': status_changed_at.date().isoformat() if status_changed_at else '',
+            'status_transitions': status_transitions,
+            'status_changes': _format_status_transitions(status_transitions),
             'epic_key': epic_key,
             'epic_summary': '',
             'epic_status': '',
@@ -1157,7 +1229,7 @@ def regenerate_roadmaps(git_results: list, config: dict, output_dir: Path) -> di
 # Phase 5: Obsidian Markdown Generation
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def generate_obsidian_markdown(
+def generate_report_markdown(
     repo_configs: list,
     mr_results: list,
     jira_issues: list,
@@ -1166,7 +1238,13 @@ def generate_obsidian_markdown(
     config: dict,
     days: int,
 ) -> str:
-    """Generate Obsidian-compatible markdown content."""
+    """Generate the canonical report markdown.
+
+    This is the single source of truth for report structure: it is written to the
+    Obsidian vault as-is, and the same string is embedded into the HTML page so the
+    browser "Finalize" step only fills MR-summary placeholders — it never re-derives
+    the markdown. Keep all layout decisions here.
+    """
     today = datetime.now().strftime('%Y-%m-%d')
     show_comments_column = bool(config.get('jira', {}).get('show_comments_column', True))
     lines = []
@@ -1315,25 +1393,25 @@ def generate_obsidian_markdown(
             lines.append('')
 
             if show_comments_column:
-                lines.append('| Key | Summary | Status | Status Changed | Comments |')
-                lines.append('|-----|---------|--------|----------------|----------|')
+                lines.append('| Key | Summary | Status | Changed This Period | Comments |')
+                lines.append('|-----|---------|--------|---------------------|----------|')
             else:
-                lines.append('| Key | Summary | Status | Status Changed |')
-                lines.append('|-----|---------|--------|----------------|')
+                lines.append('| Key | Summary | Status | Changed This Period |')
+                lines.append('|-----|---------|--------|---------------------|')
 
             for issue in group.get('issues', []):
                 summary = str(issue.get('summary', '')).replace('|', '\\|')
-                status_changed = str(issue.get('status_changed', ''))
+                changes_cell = _jira_changes_cell(issue).replace('|', '\\|')
                 if show_comments_column:
                     comment_cell = _comment_preview(issue.get('my_comments', []))
                     comment_cell = comment_cell.replace('|', '\\|')
                     lines.append(
                         f'| {issue.get("key", "")} | {summary} | {issue.get("status", "")} '
-                        f'| {status_changed} | {comment_cell} |'
+                        f'| {changes_cell} | {comment_cell} |'
                     )
                 else:
                     lines.append(
-                        f'| {issue.get("key", "")} | {summary} | {issue.get("status", "")} | {status_changed} |'
+                        f'| {issue.get("key", "")} | {summary} | {issue.get("status", "")} | {changes_cell} |'
                     )
 
             lines.append('')
@@ -1404,9 +1482,15 @@ def generate_html(
     roadmaps: dict,
     config: dict,
     days: int,
+    report_markdown: str = '',
     serve_mode: bool = False,
 ) -> str:
-    """Generate static HTML report with copy buttons and paste-back textareas."""
+    """Generate static HTML report with copy buttons and paste-back textareas.
+
+    ``report_markdown`` is the canonical markdown from generate_report_markdown();
+    it is embedded verbatim and the browser "Finalize" step only substitutes
+    MR-summary placeholders into it (no markdown is rebuilt client-side).
+    """
     today = datetime.now().strftime('%Y-%m-%d')
     show_comments_column = bool(config.get('jira', {}).get('show_comments_column', True))
     jira_groups = _group_jira_issues_by_epic(jira_issues)
@@ -1504,7 +1588,6 @@ def generate_html(
 
                 # Description
                 if mr.get('description', '').strip():
-                    desc_id = f'desc-{safe_key}'
                     h.append(f'<details class="mr-details"><summary>Description</summary>')
                     h.append(f'<pre class="mr-description">{html.escape(mr["description"])}</pre>')
                     h.append('</details>')
@@ -1610,7 +1693,7 @@ def generate_html(
 
             h.append('<div class="jira-epic-group">')
             h.append(f'<h3>{epic_heading}</h3>')
-            h.append('<table><thead><tr><th>Key</th><th>Summary</th><th>Status</th><th>Status Changed</th>')
+            h.append('<table><thead><tr><th>Key</th><th>Summary</th><th>Status</th><th>Changed This Period</th>')
             if show_comments_column:
                 h.append('<th>Comments</th>')
             h.append('</tr></thead><tbody>')
@@ -1619,7 +1702,7 @@ def generate_html(
                 h.append(f'<tr><td>{html.escape(issue.get("key", ""))}</td>'
                          f'<td>{html.escape(issue.get("summary", ""))}</td>'
                          f'<td><span class="status-badge">{html.escape(issue.get("status", ""))}</span></td>'
-                         f'<td>{html.escape(issue.get("status_changed", "") or "—")}</td>')
+                         f'<td>{html.escape(_jira_changes_cell(issue))}</td>')
                 if show_comments_column:
                     h.append(f'<td>{html.escape(_comment_preview(issue.get("my_comments", [])))}</td>')
                 h.append('</tr>')
@@ -1676,24 +1759,18 @@ def generate_html(
         h.append('</div>')
         h.append('</section>')
 
-    # Embed metadata for client-side finalize
-    # Strip large diff content from embedded JSON to keep page size manageable
-    mr_results_for_js = [
-        {k: v for k, v in mr.items() if k not in ('diff_content', 'diff_file')}
+    # The canonical markdown is the single source of truth for the finalized report.
+    # The client only needs the markdown template plus the MR identifiers required to
+    # substitute pasted summaries into their placeholders — no diffs, no Jira/Confluence
+    # data re-derived in JS.
+    mr_keys_for_js = [
+        {'project_path': mr.get('project_path', ''), 'iid': mr.get('iid')}
         for mr in mr_results
     ]
-    jira_json = json.dumps(jira_issues)
-    jira_groups_json = json.dumps(jira_groups)
-    confluence_json = json.dumps(confluence_pages)
-    epics_map = json.dumps({r['name']: r.get('_epics_detail', []) for r in repo_configs})
-    mr_json = json.dumps(mr_results_for_js)
-    h.append(f'<script>const JIRA_ISSUES = {jira_json};')
-    h.append(f'const JIRA_GROUPS = {jira_groups_json};')
-    h.append(f'const CONFLUENCE_PAGES = {confluence_json};')
-    h.append(f'const EPICS_MAP = {epics_map};')
-    h.append(f'const MR_RESULTS = {mr_json};')
-    h.append(f'const SHOW_JIRA_COMMENTS_COLUMN = {"true" if show_comments_column else "false"};')
-    h.append(f'const REPORT_DATE = "{today}";')
+    h.append('<script>')
+    h.append(f'const REPORT_TEMPLATE = {json.dumps(report_markdown)};')
+    h.append(f'const MR_RESULTS = {json.dumps(mr_keys_for_js)};')
+    h.append(f'const REPORT_DATE = {json.dumps(today)};')
     h.append(f'const DAYS = {days};')
     h.append(f'const SERVE_MODE = {"true" if serve_mode else "false"};')
     h.append('</script>')
@@ -1849,136 +1926,19 @@ function saveAllMRSummaries() {
 }
 
 function buildFinalReport() {
-    let md = `# Weekly Report — ${REPORT_DATE}\\n\\n`;
-    md += `*Last ${DAYS} days of activity*\\n\\n`;
-
-    // GitLab MR section
-    if (MR_RESULTS.length > 0) {
-        md += '## GitLab Merge Requests\\n\\n';
-
-        // Group by project
-        const byProject = {};
-        for (const mr of MR_RESULTS) {
-            const proj = mr.project_path || 'Unknown';
-            if (!byProject[proj]) byProject[proj] = [];
-            byProject[proj].push(mr);
-        }
-
-        for (const [project, mrs] of Object.entries(byProject)) {
-            md += `### ${project}\\n\\n`;
-            for (const mr of mrs) {
-                const stateLabel = mr.state === 'merged' ? '✓ Merged' : (mr.state === 'closed' ? '✗ Closed' : '○ Open');
-                md += `#### [${stateLabel}] !${mr.iid} — ${mr.title}\\n\\n`;
-                md += `**Branch:** \\`${mr.source_branch}\\` → \\`${mr.target_branch}\\``;
-                if (mr.created_at) md += ` | **Created:** ${mr.created_at}`;
-                if (mr.merged_at) md += ` | **Merged:** ${mr.merged_at}`;
-                md += `\\n**URL:** ${mr.web_url}\\n\\n`;
-
-                if (mr.description && mr.description.trim()) {
-                    const desc = mr.description.trim().slice(0, 600);
-                    md += `**Description:**\\n${desc}${mr.description.trim().length > 600 ? '...' : ''}\\n\\n`;
-                }
-
-                if (mr.changes_summary && mr.changes_summary.length > 0) {
-                    const n = mr.changes_summary.length;
-                    md += `**Changes (${n} file${n !== 1 ? 's' : ''}):**\\n`;
-                    md += '| File | +Added | −Removed |\\n';
-                    md += '|------|--------|----------|\\n';
-                    for (const ch of mr.changes_summary.slice(0, 20)) {
-                        const fp = ch.new_path || ch.old_path;
-                        md += `| \\`${fp}\\` | +${ch.added_lines} | -${ch.removed_lines} |\\n`;
-                    }
-                    if (n > 20) md += `| _...${n - 20} more files_ | | |\\n`;
-                    md += '\\n';
-                }
-
-                if (mr.notes && mr.notes.length > 0) {
-                    md += `**Comments (${mr.notes.length}):**\\n`;
-                    for (const note of mr.notes.slice(0, 5)) {
-                        const author = (note.author && note.author.username) || 'unknown';
-                        const created = String(note.created_at || '').slice(0, 10);
-                        const body = String(note.body || '').replace(/\\n/g, ' ').slice(0, 200);
-                        md += `> (${created}) **${author}**: ${body}\\n`;
-                    }
-                    if (mr.notes.length > 5) md += `> _${mr.notes.length - 5} more comments_\\n`;
-                    md += '\\n';
-                }
-
-                // Copilot summary
-                const safeKey = (mr.project_path + '!' + mr.iid).replace(/\\//g, '_').replace(/!/g, '_');
-                const textarea = document.getElementById('paste-' + safeKey);
-                if (textarea && textarea.value.trim()) {
-                    md += '**Summary:**\\n' + textarea.value.trim() + '\\n\\n';
-                }
-            }
-        }
+    // The Python side already rendered the full report into REPORT_TEMPLATE, with a
+    // placeholder comment per MR. Finalizing just swaps each placeholder for the
+    // pasted summary (or leaves it untouched when nothing was pasted). This keeps the
+    // Obsidian note and the finalized report structurally identical by construction.
+    let md = REPORT_TEMPLATE;
+    for (const mr of MR_RESULTS) {
+        const placeholder = `<!-- PASTE COPILOT SUMMARY FOR MR !${mr.iid} (${mr.project_path}) HERE -->`;
+        const safeKey = (mr.project_path + '!' + mr.iid).replace(/\\//g, '_').replace(/!/g, '_');
+        const textarea = document.getElementById('paste-' + safeKey);
+        const summary = textarea && textarea.value.trim();
+        const replacement = summary ? `**Summary:**\\n${summary}` : placeholder;
+        md = md.split(placeholder).join(replacement);
     }
-
-    // Jira section
-    if (JIRA_GROUPS.length > 0) {
-        md += '## Jira Activity\\n\\n';
-
-        for (const group of JIRA_GROUPS) {
-            if (group.epic_key) {
-                const summary = group.epic_summary ? ` — ${group.epic_summary}` : '';
-                const status = group.epic_status ? ` [${group.epic_status}]` : '';
-                md += `### ${group.epic_key}${summary}${status}\\n\\n`;
-            } else {
-                md += '### No Epic\\n\\n';
-            }
-
-            if (SHOW_JIRA_COMMENTS_COLUMN) {
-                md += '| Key | Summary | Status | Status Changed | Comments |\\n';
-                md += '| ----- | --------- | -------- | ---------------- | ---------- |\\n';
-            } else {
-                md += '| Key | Summary | Status | Status Changed |\\n';
-                md += '| ----- | --------- | -------- | ---------------- |\\n';
-            }
-
-            for (const issue of group.issues || []) {
-                const summary = String(issue.summary || '').replace(/\\|/g, '\\\\|');
-                const statusChanged = issue.status_changed || '';
-                if (SHOW_JIRA_COMMENTS_COLUMN) {
-                    const comments = (issue.my_comments && issue.my_comments.length > 0)
-                        ? issue.my_comments
-                            .map(c => `(${c.created || ''}) ${String(c.body || '').replace(/\\n/g, ' ').slice(0, 100)}`)
-                            .join('; ')
-                            .replace(/\\|/g, '\\\\|')
-                        : '—';
-                    md += `| ${issue.key} | ${summary} | ${issue.status} | ${statusChanged} | ${comments} |\\n`;
-                } else {
-                    md += `| ${issue.key} | ${summary} | ${issue.status} | ${statusChanged} |\\n`;
-                }
-            }
-            md += '\\n';
-
-            if (!SHOW_JIRA_COMMENTS_COLUMN) {
-                const withComments = (group.issues || []).filter(i => i.my_comments && i.my_comments.length > 0);
-                if (withComments.length > 0) {
-                    md += '**My Comments**\\n\\n';
-                    for (const issue of withComments) {
-                        md += `**${issue.key}** — ${issue.summary}\\n`;
-                        for (const c of issue.my_comments) {
-                            md += `> (${c.created}) ${String(c.body || '').slice(0, 200)}\\n`;
-                        }
-                        md += '\\n';
-                    }
-                }
-            }
-        }
-    }
-
-    // Confluence section
-    if (CONFLUENCE_PAGES.length > 0) {
-        md += '## Confluence Pages Edited\\n\\n';
-        for (const page of CONFLUENCE_PAGES) {
-            const link = page.url ? `[${page.title}](${page.url})` : page.title;
-            const space = page.space ? ` [${page.space}]` : '';
-            md += `- ${link}${space} — ${page.modified}\\n`;
-        }
-        md += '\\n';
-    }
-
     return md;
 }
 
@@ -2304,7 +2264,7 @@ def main():
     # Phase 5: Obsidian markdown
     obsidian_file = ''
     print(f"\n[Phase 5] Generating Obsidian markdown...")
-    md_content = generate_obsidian_markdown(
+    md_content = generate_report_markdown(
         repo_configs, gitlab_mrs, jira_issues, confluence_pages, roadmaps, config, days
     )
 
@@ -2322,7 +2282,7 @@ def main():
     print(f"\n[Phase 6] Generating HTML report...")
     html_content = generate_html(
         repo_configs, gitlab_mrs, jira_issues, confluence_pages, roadmaps,
-        config, days, serve_mode=args.serve
+        config, days, report_markdown=md_content, serve_mode=args.serve
     )
     html_path = output_dir / 'report.html'
     html_path.write_text(html_content)
