@@ -139,30 +139,6 @@ if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
 fi
 
 #===========================================================================
-# ALIASES
-#===========================================================================
-# Colors for ls and grep
-if [ -x /usr/bin/dircolors ]; then
-    # Use colors for ls
-    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-    alias ls='ls --color=auto'
-    alias grep='grep --color=auto'
-elif [ "$CLICOLOR" = 1 ]; then
-    # macOS and BSD systems
-    alias ls='ls -G'
-fi
-
-# Common ls aliases
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
-
-# Use colordiff if available
-if command -v colordiff >/dev/null 2>&1; then
-    alias diff='colordiff -u'
-fi
-
-#===========================================================================
 # SOURCE EXTERNAL FILES
 #===========================================================================
 # Source local aliases if they exist

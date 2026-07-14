@@ -8,14 +8,6 @@ else
     THIS_SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 fi
 
-# if running bash
-if [ -n "$BASH_VERSION" ]; then
-    # include .bashrc if it exists
-    if [ -f "$HOME/.bashrc" ]; then
-        . "$HOME/.bashrc"
-    fi
-fi
- 
 export EDITOR="/usr/bin/vim"
 export VISUAL="$EDITOR"
 
@@ -36,7 +28,7 @@ if [ -f /user/icdet/bin/calgrid.sh ]; then
     . /user/icdet/bin/calgrid.sh
 fi
 
-if [ -f $HOME/.env ]; then
+if [ -r "$HOME/.env" ]; then
     source "$HOME/.env"
 fi
 

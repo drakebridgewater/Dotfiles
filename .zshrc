@@ -17,8 +17,25 @@ if ! is-at-least 5.1; then
   return
 fi
 
+# Detect a non-writable / foreign-owned $HOME. This happens inside containers
+# that mount $HOME with a different UID mapping (e.g. an old RHEL7 docker image),
+# or on read-only hosts. In that case nothing under $HOME can be created, so we
+# reroute caches/history to a writable temp dir and disable features that need
+# to write into $HOME (compfix, ssh-agent env file). Keeps login clean and quiet.
+if [[ ! -O "$HOME" || ! -w "$HOME" ]]; then
+  export DOTFILES_FOREIGN_HOME=1
+  export ZSH_DISABLE_COMPFIX=true
+  _dot_runtime="${TMPDIR:-/tmp}/zsh-$(id -u)"
+  command mkdir -p "$_dot_runtime" 2>/dev/null
+  export XDG_CACHE_HOME="$_dot_runtime/cache"
+  command mkdir -p "$XDG_CACHE_HOME" 2>/dev/null
+  export HISTFILE="$_dot_runtime/histfile"
+  export ZSH_COMPDUMP="$_dot_runtime/.zcompdump"
+  unset _dot_runtime
+fi
+
 # Enable Powerlevel10k instant prompt (must be before ANY output)
-mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}"
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}" 2>/dev/null
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
@@ -46,7 +63,9 @@ zstyle :omz:plugins:ssh-agent agent-forwarding yes
 
 # Path to your oh-my-zsh installation
 export ZSH="$HOME/.oh-my-zsh"
-export ZSH_COMPDUMP=$ZSH/cache/.zcompdump-$HOST
+# Only pin the compdump into $ZSH when $HOME is writable; otherwise keep the
+# temp-dir location set in the foreign-home block above.
+[[ -z "$DOTFILES_FOREIGN_HOME" ]] && export ZSH_COMPDUMP=$ZSH/cache/.zcompdump-$HOST
 
 # Oh My Zsh Theme
 # ZSH_THEME="robbyrussell" // added to Zinit
@@ -62,21 +81,30 @@ COMPLETION_WAITING_DOTS="true"
 
 # Plugins
 plugins=(
-  sudo
-  ssh-agent
-  docker
-  isodate
-  zsh-autosuggestions
-  zsh-syntax-highlighting
+  aliases
   colored-man-pages
+  dirhistory
+  docker
+  gitfast
+  isodate
+  sudo
+  zsh-autosuggestions
+  zsh-navigation-tools
+  zsh-syntax-highlighting
 )
+# ssh-agent writes an env file under ~/.ssh; skip it when $HOME isn't writable.
+[[ -z "$DOTFILES_FOREIGN_HOME" ]] && plugins+=(ssh-agent)
+[[ -n "$(command -v docker-compose)" ]] && plugins+=(docker-compose)
+[[ -n "$(command -v docker)" ]] && plugins+=(docker)
+[[ -n "$(command -v kubectl)" ]] && plugins+=(kubectl)
 
 source $ZSH/oh-my-zsh.sh
 
 #===========================================================================
 # History Configuration
 #===========================================================================
-export HISTFILE=~/.histfile
+# Keep the temp-dir HISTFILE set in the foreign-home block when $HOME isn't writable.
+[[ -z "$DOTFILES_FOREIGN_HOME" ]] && export HISTFILE=~/.histfile
 export HISTSIZE=1000000
 export SAVEHIST=1000000
 
@@ -325,7 +353,10 @@ take() { mkdir -p "$1" && cd "$1"; }
 
 # Load p10k configuration
 [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-# tmux-git-autofetch() {(/home/drabri2r/.tmux/plugins/tmux-git-autofetch/git-autofetch.tmux --current &)}
+# tmux-git-autofetch() {(~/.tmux/plugins/tmux-git-autofetch/git-autofetch.tmux --current &)}
 # add-zsh-hook chpwd tmux-git-autofetch
-eval "$(/opt/homebrew/bin/brew shellenv)"
-export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+
+if command -v /opt/homebrew/bin/brew >/dev/null 2>&1; then
+  eval "$(/opt/homebrew/bin/brew shellenv)"
+  export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+fi
