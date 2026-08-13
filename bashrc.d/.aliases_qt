@@ -1,0 +1,22 @@
+if ! command -v qtcreator >/dev/null 2>&1; then
+    return
+fi
+
+alias qt_4.8.4='source ~/bin/setQtVersion 4.8.4'
+alias qt_4.8.7='source ~/bin/setQtVersion 4.8.7'
+alias qt_5.6.1='source ~/bin/setQtVersion 5.6.1-1'
+alias qt_5.6.2='source ~/bin/setQtVersion 5.6.2'
+alias qt_5.6.3='source ~/bin/setQtVersion 5.6.3'
+alias qt_5.9.6='source ~/bin/setQtVersion 5.9.6'
+alias qt_5.12.0='source ~/bin/setQtVersion 5.12.0'
+alias qt_5.12.1='source ~/bin/setQtVersion 5.12.1'
+alias qt_5.12.2='source ~/bin/setQtVersion 5.12.2'
+alias qt_5.12.9='source ~/bin/setQtVersion 5.12.9'
+alias qt_5.12.10='source ~/bin/setQtVersion 5.12.10'
+alias newest_qtc=qt_5.12.2
+alias use_qt='source ~/bin/setQtVersion'
+
+alias qt_env='source ~/bin/qt_env'
+alias qtc='( newest_qtc ; qtcreator -lastsession )'
+alias qtc_cal='( newest_qtc ; qtcreator calibre.creator )'
+alias qtc_noload='( newest_qtc ; qtcreator -lastsession -noload Welcome )'

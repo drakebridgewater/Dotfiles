@@ -1,12 +1,13 @@
-if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
-  . "$(code --locate-shell-integration-path zsh)" 2>/dev/null
-fi
-
 # If not running interactively, don't do anything
 case $- in
     *i*) ;;
       *) return;;
 esac
+
+if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
+  . "$(code --locate-shell-integration-path zsh)" 2>/dev/null
+fi
+
 
 # Detect old zsh (< 5.1) and use a stripped-down config instead.
 # zsh 5.0.2 (RHEL 7) lacks support for P10k, Zinit, async autosuggestions,
@@ -224,7 +225,9 @@ unset _matchers
 #===========================================================================
 # Source additional configuration files
 #===========================================================================
-source $HOME/Dotfiles/.aliases
+for f in ~/Dotfiles/bashrc.d/*; do
+    [ -r "$f" ] && source "$f"
+done
 
 #===========================================================================
 # Siemens EDA configuration (only on Siemens hosts)
@@ -256,15 +259,18 @@ ZSH_AUTOSUGGEST_USE_ASYNC=1
 #===========================================================================
 # Zinit Plugin Manager
 #===========================================================================
-if [[ ! -f $HOME/.local/share/zinit/zinit.git/zinit.zsh ]]; then
+# and if /.local/share/ is writable
+if [[ -w $HOME/.local/share/ && ! -f $HOME/.local/share/zinit/zinit.git/zinit.zsh  ]]; then
   print -P "%F{33} %F{220}Installing %F{33}ZDHARMA-CONTINUUM%F{220} Initiative Plugin Manager (%F{33}zdharma-continuum/zinit%F{220})…%f"
   command mkdir -p "$HOME/.local/share/zinit" && command chmod g-rwX "$HOME/.local/share/zinit"
   command git clone https://github.com/zdharma-continuum/zinit "$HOME/.local/share/zinit/zinit.git" && \
     print -P "%F{33} %F{34}Installation successful.%f%b" || \
     print -P "%F{160} The clone has failed.%f%b"
 fi
+if [[ -f $HOME/.local/share/zinit/zinit.git/zinit.zsh ]]; then
+  source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
+fi
 
-source "$HOME/.local/share/zinit/zinit.git/zinit.zsh"
 autoload -Uz _zinit
 ((${+_comps})) && _comps[zinit]=_zinit
 
@@ -302,9 +308,6 @@ if type zi >/dev/null 2>&1; then
   # Adds 'bat' command: A cat clone with syntax highlighting and Git integration.
   zinit ice as"command" from"gh-r" mv"bat* -> bat" pick"bat/bat"
   zinit light sharkdp/bat
-
-else
-  echo "Zinit (zi) command not found, skipping Zinit plugins."
 fi
 
 #===========================================================================

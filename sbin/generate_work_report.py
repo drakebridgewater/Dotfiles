@@ -944,12 +944,13 @@ def query_jira(config: dict, days: int) -> list:
         query_fields.append(field_ids['parent_link'])
 
     project_list = ', '.join(projects)
+    ownership_jql = 'assignee = currentUser() OR "Ready for QA By" = currentUser()'
     jql = (
         f'type not in (epic) AND '
         f'((status in (Opened, Review, "Ready for QA", "In Validation", Closed) '
         f'AND updated >= -{days}d) OR '
         f'(status in (Submitted) AND created >= -{days}d)) '
-        f'AND assignee = currentUser() '
+        f'AND ({ownership_jql}) '
         f'AND project in ({project_list}) '
         f'ORDER BY created DESC'
     )

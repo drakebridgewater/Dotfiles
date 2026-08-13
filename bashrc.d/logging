@@ -1,0 +1,109 @@
+#!/bin/bash
+
+# Utility script to log messages with different colors
+# Usage: source logging
+#       error "This is an error message"
+#       warning "This is a warning message"
+#       info "This is an info message"
+#       success "This is a success message"
+
+# Text formatting
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+NC='\033[0m' # No Color
+
+# Initialize counters
+ERROR_COUNT=0
+WARNING_COUNT=0
+
+get_timestamp() {
+    # Use a more robust timestamp that works during bash cleanup
+    date +"%Y-%m-%d %H:%M:%S" 2>/dev/null || printf '%(%Y-%m-%d %H:%M:%S)T' -1 2>/dev/null || echo "TIMESTAMP_ERROR"
+}
+
+# Reset counters function
+reset_counters() {
+    ERROR_COUNT=0
+    WARNING_COUNT=0
+}
+
+# Get error count
+get_error_count() {
+    echo $ERROR_COUNT
+}
+
+# Get warning count
+get_warning_count() {
+    echo $WARNING_COUNT
+}
+
+# Function to log errors
+error() {
+    ERROR_COUNT=$((ERROR_COUNT + 1))
+    local timestamp
+    timestamp=$(get_timestamp)
+    echo -e "${RED}${timestamp}:ERROR: $*${NC}" >&2 2>/dev/null || echo "ERROR: $*" >&2
+}
+
+# Function to log warnings
+warning() {
+    WARNING_COUNT=$((WARNING_COUNT + 1))
+    
+    local WARNING_DISABLE=${WARNING_DISABLE:-0}
+    if [ "${WARNING_DISABLE}" -eq 1 ]; then
+        return
+    fi
+    local timestamp
+    timestamp=$(get_timestamp)
+    echo -e "${YELLOW}${timestamp}:WARNING: $*${NC}" 2>/dev/null || echo "WARNING: $*"
+}
+
+# Function to log info
+info() {
+    local INFO_DISABLE=${INFO_DISABLE:-0}
+    if [ "${INFO_DISABLE}" -eq 1 ]; then
+        return
+    fi
+    local timestamp
+    timestamp=$(get_timestamp)
+    echo -e "${BLUE}${timestamp}:INFO: $*${NC}" 2>/dev/null || echo "INFO: $*"
+}
+
+debug() {
+    local DEBUG_DISABLE=${DEBUG_DISABLE:-0}
+    if [ "${DEBUG_DISABLE}" -eq 1 ]; then
+        return
+    fi
+    local timestamp
+    timestamp=$(get_timestamp)
+    echo -e "${PURPLE}${timestamp}:DEBUG: $*${NC}" 2>/dev/null || echo "DEBUG: $*"
+}
+
+
+# Function to log success
+success() {
+    local timestamp
+    timestamp=$(get_timestamp)
+    echo -e "${GREEN}${timestamp}:SUCCESS: $*${NC}" 2>/dev/null || echo "SUCCESS: $*"
+}
+
+summary() {
+    printf "\n======== Summary ========\n"
+    if [ $ERROR_COUNT -eq 0 ] && [ $WARNING_COUNT -eq 0 ]; then
+        echo -e "${GREEN}All passed successfully!${NC}"
+        return 0
+    else
+        echo -e "${RED}Found $ERROR_COUNT errors${NC} and ${YELLOW}$WARNING_COUNT warnings${NC}"
+        if [ $ERROR_COUNT -gt 0 ]; then
+            return 1
+        else
+            # Exit with success if only warnings
+            return 0
+        fi
+    fi
+}
+
+

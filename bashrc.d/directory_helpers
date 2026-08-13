@@ -1,0 +1,16 @@
+# Get the nth parent dir - sort of unsafe - buyer beware
+function parent_dir() (
+    local n=1
+    [ $# -lt 1 ] && die "not enough args"
+    local current="${1}"
+    if [ $# -ge 2 ]; then
+        n="${2}"
+    fi
+
+    for iter in $(seq $n); do
+        current="$(dirname ${current})"
+        # If we reach something that isn't a directory we should just return
+        [ ! -d ${current} ] && return 1
+    done
+    echo ${current}
+)

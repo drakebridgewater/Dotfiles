@@ -1,0 +1,55 @@
+check_docker_engine_running() {
+	docker info >/dev/null
+	if [ $? -eq 1 ]; then
+		echo "Docker engine is not running!"
+		echo "Please start docker engine, then try again."
+		return 1
+	fi
+	return 0
+}
+
+is_container() {
+    # --- How to use it in your script ---
+    # if is_container; then
+    #     echo "Running inside a Docker/Container environment. Adjusting behavior..."
+    #     # Insert container-specific commands here (e.g., skip sudo, use alternate paths)
+    # else
+    #     echo "Running on a native RHEL host machine."
+    #     # Insert host-specific commands here
+    # fi
+    # 1. Check for the official Linux container initialization indicator
+    if [ -f /run/systemd/container ]; then
+        return 0
+    fi
+
+    # 2. Check cgroups v1 / cgroups v2 mount paths (Covers RHEL 8, 9, and 10)
+    # Inside a v2 container, mountinfo leaks docker/podman slices even when /proc/1/cgroup is masked
+    if [ -f /proc/self/mountinfo ] && grep -qE '(docker|kubepods|libpod|overlay)' /proc/self/mountinfo; then
+        return 0
+    fi
+
+    # 3. Check legacy cgroups v1 strings (Covers RHEL 6 and 7)
+    if [ -f /proc/1/cgroup ] && grep -qE '(docker|kubepods|libpod)' /proc/1/cgroup; then
+        return 0
+    fi
+
+    # 4. Fallback: Check if PID 1 is an application instead of a system init daemon
+    # System init is typically systemd, init, or launchd. 
+    if [ -f /proc/1/sched ]; then
+        local init_proc
+        init_proc=$(head -n 1 /proc/1/sched | awk '{print $1}')
+        if [[ ! "$init_proc" =~ ^(systemd|init|upstart)$ ]]; then
+            return 0
+        fi
+    fi
+
+    # 5. Last resort fallback for legacy environments
+    if [ -f /.dockerenv ] || [ -f /.dockerinit ]; then
+        return 0
+    fi
+
+    # If all checks fail, assume we are on a bare-metal host or standard VM
+    return 1
+}
+
+

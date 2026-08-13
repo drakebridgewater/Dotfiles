@@ -1,26 +1,47 @@
-function humanReadableDurationToSeconds() {
-  # example input: 3h 2m 1s
-  local duration=$1
-  if [ -z "$duration" ]; then
-    echo "Usage: humanReadableDurationToSeconds <duration>"
-    echo "Example: humanReadableDurationToSeconds '3h 2m 1s'"
-    return 1
-  fi
-  local seconds=0
-  local hours=0
-  local minutes=0
-  local seconds=0
-  local duration_array=($duration)
-  for i in "${duration_array[@]}"; do
-    if [[ $i == *h ]]; then
-      hours=${i//h/}
-    elif [[ $i == *m ]]; then
-      minutes=${i//m/}
-    elif [[ $i == *s ]]; then
-      seconds=${i//s/}
+
+
+# confirm_continue: Interactive confirmation prompt for user
+# Usage: confirm_continue
+# Purpose: Pause execution in interactive mode to allow user review before proceeding
+# Returns: 0 on confirmation (Y/y), 1 on abort (any other key)
+confirm_continue() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        read -r -p "Press Y to continue, any other key to abort: " response
+        case "$response" in
+            [Yy]) ;;
+            *) echo "Aborting."; return  1 ;;
+        esac
     fi
-  done
-  echo $((hours * 3600 + minutes * 60 + seconds))
+}
+
+# Validate that a named variable is set and non-empty.
+check_variable() {
+    source_logging
+    var_name=${1}
+    message=${2}
+    print_only=${3:-0}
+
+    # Validate variable name before eval to keep lookup safe and portable.
+    case "${var_name}" in
+        ''|[0-9]*|*[!A-Za-z0-9_]*)
+            error "check_variable got an invalid variable name: ${var_name}"
+            return 1
+            ;;
+    esac
+
+    eval "var_name=\${${var_name}-}"
+
+    if [ -z "${var_name}" ]; then
+        if [ "${print_only}" = "1" ]; then
+            warning "${message}"
+        else
+            error "${message}"
+        fi
+        return 1
+    fi
+
+    unset var_name message print_only var_name
+    return 0
 }
 
 function warnings_for_file() {
@@ -668,40 +689,45 @@ function setup_build_env() {
 
 function make_workareas() {
     # check if "ic" directory is in the iwa directory
-    local current_dir
-    current_dir=$(pwd)
-    # if the current directory contains "ic" directory then it's the IWA
-    if [ -d "${current_dir}/ic" ] && [ -z "$IWA" ]; then
-        echo "IWA variable is not set, using current directory: ${current_dir}"
-        IWA="${current_dir}"
+    local IWA=${1}
+    local BUILD_VCO=${2}
+    local original_directory=$(pwd)
+
+    if [ -z "$IWA" ]; then
+        echo "Error: IWA variable is not set. Please provide the IWA path as the second argument."
+        return 1
     fi
+
+    IWA=$(realpath "$IWA") || return 1
+
     if [ ! -d "${IWA}/ic" ]; then
         echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
         return 1
     fi
-    if [ -z "$1" ]; then
-      echo "Using environment variable BUILD_VCO of $BUILD_VCO"
-    fi
-    local BUILD_VCO=${1:-$BUILD_VCO}
     if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        echo "Error: BUILD_VCO variable is not set. Please provide the BUILD_VCO as the first argument."
         return 1
     fi
 
-    for dir in ic_superproj lv euv; do
+    local DIRECTORIES=("ic_superproj" "lv" "euv")
+
+    for dir in "${DIRECTORIES[@]}"; do
         if [ -d "${IWA}/ic/${dir}" ]; then
           echo "Making work area for ic/${dir}/${BUILD_VCO}"
           cd "${IWA}/ic/${dir}" || exit
           # Check if the BUILD_VCO directory already exists
           if [ ! -d "${BUILD_VCO}" ]; then
-          
-              mkwa . . "$BUILD_VCO" -newdir
+              mkwa . . "$BUILD_VCO" -newdir || {
+                  echo "Error: Failed to create work area for ${dir}/${BUILD_VCO}."
+                  cd "${original_directory}" || exit
+                  return 1
+              }
           fi
         fi
     done
     
     # return to the original directory
-    cd "${current_dir}" || exit
+    cd "${original_directory}" || exit
 }
 
 function remove_workarea() {
@@ -726,7 +752,8 @@ function remove_workarea() {
         return 1
     fi
 
-    for dir in ic_superproj lv euv; do
+    local DIRECTORIES=("ic_superproj" "lv" "euv")
+    for dir in "${DIRECTORIES[@]}"; do
         if [ -d "${IWA}/ic/${dir}/${BUILD_VCO}" ]; then
           echo "Removing work area for ic/${dir}/${BUILD_VCO}"
           echo "Are you sure? (y/n)"
@@ -744,6 +771,7 @@ function remove_workarea() {
 }
 
 function set_gmake_parallel() {
+    echo "Setting gmake parallel"
     cpu_count=$(/home/cqi/toolsets/any/bin/systemInfo | grep 'total logical CPU units' | awk '{print $NF}')
     if [ -z "${cpu_count}" ]; then
         echo "cpu_count is empty, setting to 8"
@@ -763,6 +791,7 @@ function set_gmake_parallel() {
 }
 
 function set_gmake_output_sync() {
+    echo "Setting output sync..."
     requested_output_sync=$1
     if [ -z "${requested_output_sync}" ]; then
         requested_output_sync="target"
@@ -777,172 +806,229 @@ function set_gmake_output_sync() {
     export MAKEFLAGS=--output-sync=${requested_output_sync}
 }
 
-function make_cxx_warn_flags() {
+# Set the make command and its arguments as an array so paths and arguments
+# remain separate when the command is invoked from zsh.
+get_make_cmd() {
+    local BUILD_VCO=${1}
+    local MAKE_CMD_BIN=gmake
+    local DOCKERMAKE_ARG=""
+
+    if echo "${BUILD_VCO}" | grep -Eq 'rhel9|rh9'; then
+        echo "RHEL9 VCO detected, but no specific dockermake arguments needed at this time" >&2
+    elif echo "${BUILD_VCO}" | grep -Eq 'rhel8|rh8'; then
+        DOCKERMAKE_ARG="--aaw-rh8"
+    else
+        echo "No specific RHEL version detected in BUILD_VCO, defaulting to RHEL8 dockermake arguments" >&2
+        DOCKERMAKE_ARG="--aaw-rh8"
+    fi
+
+    if echo "${BUILD_VCO}" | grep -Eq '^aaw'; then
+        echo "AAW VCO detected, using dockermake" >&2
+        RESOLVED_DOCKERMAKE=$(command -v dockermake)
+        if [ -z "${RESOLVED_DOCKERMAKE}" ]; then
+            error "dockermake command not found in PATH, but BUILD_VCO indicates an AAW build. Please ensure dockermake is installed and in the PATH."
+            return 1
+        fi
+        MAKE_CMD_BIN="${RESOLVED_DOCKERMAKE}"
+    else
+        DOCKERMAKE_ARG=""
+    fi
+
+    MAKE_CMD=("${MAKE_CMD_BIN}")
+    if [ -n "${DOCKERMAKE_ARG}" ]; then
+      MAKE_CMD+=("${DOCKERMAKE_ARG}")
+    fi
+}
+
+# Shared preamble for the mk_* helpers: resolves IWA, the build log and the VCO,
+# then prepares MAKE_CMD and the gmake parallelism/output settings.
+# Exposes the resolved VCO as MK_BUILD_VCO so the caller's BUILD_VCO is untouched.
+_mk_setup() {
+    source /user/icdet/bin/detalias.sh
     if [ -z "${BUILD_LOG_PATH}" ]; then
         echo "Error: BUILD_LOG_PATH variable is not set using stdout"
         BUILD_LOG_PATH="/dev/stdout"
     fi
+    IWA=$(realpath "${IWA:-$(pwd)}")
     if [ ! -d "${IWA}/ic" ]; then
         echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
         return 1
     fi
 
-    if [ -z "$BUILD_VCO" ]; then
+    MK_BUILD_VCO=${BUILD_VCO:-$VCO}
+    if [ -z "${MK_BUILD_VCO}" ]; then
         echo "Error: BUILD_VCO variable is not set and VCO is also not set."
         return 1
     fi
 
-    echo "Running mk_imports and imports to enable cxx_warn_flags generation"
+    get_make_cmd "${MK_BUILD_VCO}" || return 1
+    set_gmake_parallel || return 1
+    set_gmake_output_sync || return 1
+}
+
+# Run make targets in ${IWA}/ic/<subdir>/<vco>, appending output to the build log.
+# Usage: _mk_run <subdir> <target> [target...]
+_mk_run() {
+    local subdir=$1
+    shift
     (
-        cd "${IWA}/ic/ic_superproj/${BUILD_VCO}" || exit
-        cglu
-        gmake mk_imports imports 2>&1 | tee -a "${BUILD_LOG_PATH}"
+        cd "${IWA}/ic/${subdir}/${MK_BUILD_VCO}" || exit 1
+        cglu || sglu || {
+            echo "Error: cglu or sglu failed. Check the build log at ${BUILD_LOG_PATH} for details."
+            exit 1
+        }
+        "${MAKE_CMD[@]}" "$@" 2>&1 | tee -a "${BUILD_LOG_PATH}"
     )
+}
+
+# Fail if the build log recorded compiler errors. Skipped when logging to stdout.
+_mk_check_log() {
+    local label=$1
+    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ] && grep -q -i "error: " "${BUILD_LOG_PATH}"; then
+        echo "Error: ${label} failed. Check the build log at ${BUILD_LOG_PATH} for details."
+        return 1
+    fi
+}
+
+function mk_imports() {
+    echo "Starting mk_imports"
+    _mk_setup || return 1
+    _mk_run ic_superproj mk_imports imports
+}
+
+
+function make_cxx_warn_flags() {
+    echo "Starting make_cxx_warn_flags"
+    _mk_setup || return 1
+
+    echo "Running mk_imports and imports to enable cxx_warn_flags generation"
+    mk_imports || {
+        echo "Error: imports failed. Check the build log at ${BUILD_LOG_PATH} for details."
+        return 1
+    }
 
     echo "Generating cxx_warn_flags"
-    (
-        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
-        cglu
-        gmake cxx_warn_flags 2>&1 | tee -a "${BUILD_LOG_PATH}"
-    )
+    _mk_run lv cxx_warn_flags
 }
 
 function mk_ic_hdr() {
     echo "Starting mk_ic_hdr"
-    if [ -z "${BUILD_LOG_PATH}" ]; then
-        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
-        BUILD_LOG_PATH="/dev/stdout"
-    fi
-    if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
-        return 1
-    fi
+    _mk_setup || return 1
 
-    local BUILD_VCO=${BUILD_VCO:-$VCO}
-
-    if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
-        return 1
-    fi
-
-
-    echo "Current directory is $(pwd)" >>"${BUILD_LOG_PATH}"
-    (
-        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
-        cglu
-        gmake ic_hdr 2>&1 | tee -a "${BUILD_LOG_PATH}"
-    )
-
-    # if errors in log exit with error and build log path is not /dev/stdout
-    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
-        if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
-            echo "Error: mk_ic_hdr failed. Check the build log at ${BUILD_LOG_PATH} for details."
-            return 1
-        fi
-    fi
+    echo "Current directory is $(pwd)" >> "${BUILD_LOG_PATH}"
+    _mk_run lv ic_hdr
+    _mk_check_log ic_hdr
 }
 
 function mk_euv() {
     echo "Starting mk_euv"
-    if [ -z "${BUILD_LOG_PATH}" ]; then
-        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
-        BUILD_LOG_PATH="/dev/stdout"
-    fi
-    if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
-        return 1
-    fi
+    _mk_setup || return 1
 
-    local BUILD_VCO=${BUILD_VCO:-$VCO}
-
-    if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
-        return 1
-    fi
-
-    if [ -d "${IWA}/ic/euv/${BUILD_VCO}" ]; then
-        echo "EUV directory found, building EUV headers" 
-        (
-            cd "${IWA}/ic/euv/${BUILD_VCO}" || exit
-            cglu
-            gmake lcl_lib 2>&1 | tee -a "${BUILD_LOG_PATH}"
-        )
+    if [ -d "${IWA}/ic/euv/${MK_BUILD_VCO}" ]; then
+        echo "EUV directory found, building EUV headers"
+        _mk_run euv lcl_lib
     else
-        echo "EUV directory not found, skipping EUV build" 
-    fi    
-    # if errors in log exit with error
-    if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
-        echo "Error: mk_euv failed. Check the build log at ${BUILD_LOG_PATH} for details."
-        return 1
+        echo "EUV directory not found, skipping EUV build"
     fi
+    _mk_check_log euv
 }
 
 function mk_lcl_libs() {
     echo "Starting mk_lcl_libs"
-    if [ -z "${BUILD_LOG_PATH}" ]; then
-        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
-        BUILD_LOG_PATH="/dev/stdout"
-    fi
-    if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
-        return 1
-    fi
+    _mk_setup || return 1
 
-    local BUILD_VCO=${BUILD_VCO:-$VCO}
-
-    if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
-        return 1
-    fi
-
-    (
-        cd "${IWA}/ic/lv/${BUILD_VCO}" || exit
-        cglu
-        gmake lcl_lib lcl_olib  2>&1 | tee -a "${BUILD_LOG_PATH}"
-    )
-    # if errors in log exit with error    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
-    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
-        if grep -q -i "error: " "${BUILD_LOG_PATH}"; then
-            echo "Error: mk_lcl_libs failed. Check the build log at ${BUILD_LOG_PATH} for details."
-            return 1
-        fi
-    fi
+    _mk_run lv lcl_lib lcl_olib
+    _mk_check_log lcl_libs
 }
 
-function mk_all() {
-    IWA=${1}
-    BUILD_VCO=${2}
-    BUILD_LOG_PATH=${3}
+function mk_lcl_exec() {
+    echo "Starting mk_lcl_exec"
+    _mk_setup || return 1
+
+    _mk_run lv lcl_exec
+    _mk_check_log lcl_exec
+}
+
+function mk_ic_create_deps() {
+    echo "Starting mk_ic_create_deps"
+    _mk_setup || return 1
+
+    _mk_run lv ic_create_deps
+    _mk_check_log ic_create_deps
+}
+
+function mk_lv_verify() {
+    echo "Starting mk_lv_verify"
+    _mk_setup || return 1
+
+    _mk_run lv lv_verify
+    _mk_check_log lv_verify
+}
+
+
+# Shared entry point for the top level build drivers: validates the arguments,
+# exports the build environment, rotates the previous log and creates the work areas.
+# Usage: _mk_build_start <caller-name> <IWA> <BUILD_VCO> <BUILD_LOG_PATH>
+_mk_build_start() {
+    local caller=$1
+    IWA=${2}
+    BUILD_VCO=${3}
+    BUILD_LOG_PATH=${4}
 
     if [ -z "${IWA}" ] || [ -z "${BUILD_VCO}" ] || [ -z "${BUILD_LOG_PATH}" ]; then
-        echo "Usage: mk_all <IWA> <BUILD_VCO> <BUILD_LOG_PATH>"
+        echo "Usage: ${caller} <IWA> <BUILD_VCO> <BUILD_LOG_PATH>"
         return 1
     fi
+    source /user/icdet/bin/detalias.sh
     IWA=$(realpath "${IWA}")
     export IWA
     export BUILD_VCO
     export BUILD_LOG_PATH
     touch "${BUILD_LOG_PATH}"
-    export BUILD_LOG_PATH=$(realpath "${BUILD_LOG_PATH}")
+    BUILD_LOG_PATH=$(realpath "${BUILD_LOG_PATH}")
     echo "Build log path: ${BUILD_LOG_PATH}"
     echo "Build VCO: ${BUILD_VCO}"
     echo "IWA: ${IWA}"
 
-    # Move build lod to RETRY_${BUILD_LOG_PATH} if it exists (force)
+    # Move build log to RETRY_${BUILD_LOG_PATH} if it exists (force)
     if [ -f "${BUILD_LOG_PATH}" ]; then
         mv -f "${BUILD_LOG_PATH}" "RETRY_${BUILD_LOG_PATH}"
     fi
 
+    echo "Starting build process..."
     setup_build_env
-    make_workareas ${IWA}
-    set_gmake_parallel
-    set_gmake_output_sync
-    {
-        make_cxx_warn_flags
-        mk_ic_hdr
-        mk_euv
-        mk_lcl_libs
-    }
+
+    echo "Making work areas..."
+    make_workareas "${IWA}" "${BUILD_VCO}" || echo "Warning: make_workareas reported a failure, continuing."
+}
+
+function mk_calibre() {
+    _mk_build_start mk_calibre "$@" || return 1
+
+    echo "Building cxx_warn_flags, lcl_libs, and lcl_exec..."
+    make_cxx_warn_flags
+    mk_lcl_exec
+    mk_ic_create_deps
+}
+
+function mk_calibre_with_systest() {
+    _mk_build_start mk_calibre_with_systest "$@" || return 1
+
+    echo "Building cxx_warn_flags, lcl_libs, and lcl_exec..."
+    make_cxx_warn_flags
+    mk_lcl_exec
+    mk_ic_create_deps
+    mk_lv_verify
+}
+
+function mk_all() {
+    _mk_build_start mk_all "$@" || return 1
+
+    echo "Building cxx_warn_flags, ic_hdr, euv, and lcl_libs..."
+    make_cxx_warn_flags
+    mk_ic_hdr
+    mk_euv
+    mk_lcl_libs
 }
 
 function update_git_repos() {
@@ -970,8 +1056,6 @@ function split_log_file() {
   # The string that will trigger a new file split.
   # The line containing this string will be the first line of the new file.
   SPLIT_STRING=${2:-"Entering directory"}
-
-  # --- Script Logic ---
 
   # Check if an input file was provided
   if [ -z "$1" ]; then

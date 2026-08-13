@@ -247,44 +247,6 @@ if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlightin
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 fi
 
-# Create/update .zshrc
-cat > $HOME/.zshrc << 'EOF'
-# Enable Powerlevel10k theme
-ZSH_THEME="powerlevel10k/powerlevel10k"
-
-# Path to your oh-my-zsh installation
-export ZSH="$HOME/.oh-my-zsh"
-
-# Set plugins
-plugins=(
-    git
-    docker
-    sudo
-    tmux
-    zsh-autosuggestions
-    zsh-syntax-highlighting
-)
-
-# Source oh-my-zsh
-source $ZSH/oh-my-zsh.sh
-
-# User configuration
-export EDITOR='nvim'
-export VISUAL='nvim'
-
-# Aliases
-alias vim='nvim'
-alias vi='nvim'
-alias ll='ls -la'
-alias zshconfig='$EDITOR ~/.zshrc'
-alias zshreload='source ~/.zshrc'
-alias tmuxconfig='$EDITOR ~/.tmux.conf'
-
-# Custom key bindings
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
-EOF
-
 # Set Zsh as default shell
 chsh -s $(which zsh) $(whoami)
 
@@ -304,42 +266,6 @@ if [ ! -d "$HOME/.tmux" ]; then
     git clone https://github.com/gpakosz/.tmux.git $HOME/.tmux
     ln -s -f $HOME/.tmux/.tmux.conf $HOME
 fi
-
-# Create custom .tmux.conf.local
-cat > $HOME/.tmux.conf.local << 'EOF'
-# Increase history limit
-set -g history-limit 50000
-
-# Enable mouse support
-set -g mouse on
-
-# Set terminal to 256 colors
-set -g default-terminal "screen-256color"
-
-# Use vim key bindings in copy mode
-setw -g mode-keys vi
-
-# Plugins
-set -g @plugin 'tmux-plugins/tpm'
-set -g @plugin 'tmux-plugins/tmux-sensible'
-set -g @plugin 'tmux-plugins/tmux-resurrect'
-set -g @plugin 'tmux-plugins/tmux-continuum'
-set -g @plugin 'tmux-plugins/tmux-yank'
-set -g @plugin 'tmux-plugins/tmux-pain-control'
-set -g @plugin 'tmux-plugins/tmux-prefix-highlight'
-
-# Plugin settings
-set -g @continuum-restore 'on'
-set -g @resurrect-strategy-nvim 'session'
-
-# Status bar customization
-set -g status-left "#{prefix_highlight} #[fg=green]#S #[fg=yellow]#I #[fg=cyan]#P"
-set -g status-right "#{prefix_highlight} #[fg=cyan]%a %d %b %R #[fg=green]#H"
-
-# Initialize TMUX plugin manager (keep this line at the very bottom of tmux.conf)
-run '~/.tmux/plugins/tpm/tpm'
-EOF
-
 # Install tmux plugins automatically
 $HOME/.tmux/plugins/tpm/bin/install_plugins
 

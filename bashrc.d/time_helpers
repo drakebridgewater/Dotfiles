@@ -1,0 +1,24 @@
+function humanReadableDurationToSeconds() {
+  # example input: 3h 2m 1s
+  local duration=$1
+  if [ -z "$duration" ]; then
+    echo "Usage: humanReadableDurationToSeconds <duration>"
+    echo "Example: humanReadableDurationToSeconds '3h 2m 1s'"
+    return 1
+  fi
+  local seconds=0
+  local hours=0
+  local minutes=0
+  local seconds=0
+  local duration_array=($duration)
+  for i in "${duration_array[@]}"; do
+    if [[ $i == *h ]]; then
+      hours=${i//h/}
+    elif [[ $i == *m ]]; then
+      minutes=${i//m/}
+    elif [[ $i == *s ]]; then
+      seconds=${i//s/}
+    fi
+  done
+  echo $((hours * 3600 + minutes * 60 + seconds))
+}

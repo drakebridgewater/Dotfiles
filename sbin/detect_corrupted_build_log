@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+usage() {
+    cat <<'EOF'
+Usage: detect_corrupted_build_log <build_log_path>
+
+Scans a build log for likely corruption markers that can break parsers
+(e.g. merged lines like "...hgmake...Leaving directory" and make stdout
+write failures).
+
+Output format:
+JSON object with fields:
+    - log_file
+    - issues[]
+    - issue_count
+    - status
+
+Exit codes:
+0  no corruption markers found
+2  one or more corruption markers found
+1  invalid usage or runtime error
+EOF
+}
+
+if [ "$#" -ne 1 ]; then
+    usage
+    exit 1
+fi
+
+log_file="$1"
+if [ ! -f "$log_file" ]; then
+    echo "Error: file not found: $log_file" >&2
+    exit 1
+fi
+
+set +e
+awk -v log_file="$log_file" '
+function json_escape(s, t) {
+    t = s
+    gsub(/\\/, "\\\\", t)
+    gsub(/"/, "\\\"", t)
+    gsub(/\t/, "\\t", t)
+    gsub(/\r/, "\\r", t)
+    gsub(/\n/, "\\n", t)
+    return t
+}
+
+function report(kind, text, excerpt) {
+    issues++
+    excerpt = text
+    gsub(/\t/, " ", excerpt)
+    if (length(excerpt) > 260) {
+        excerpt = substr(excerpt, 1, 220) "...<truncated>..." substr(excerpt, length(excerpt)-29)
+    }
+    issue_line[issues] = NR
+    issue_type[issues] = kind
+    issue_excerpt[issues] = excerpt
+}
+
+BEGIN {
+    issues = 0
+}
+
+{
+    line = $0
+    dir_re = "gmake[0-9.]*([.]exe)?\\[[0-9]+\\]: (Entering|Leaving) directory '\''[^'\'']*'\''"
+
+    if (line ~ /gmake[0-9.]*([.]exe)?([[][0-9]+[]])?: write error: stdout/) {
+        report("make_stdout_write_error", line)
+    }
+
+    if (match(line, dir_re)) {
+        prefix = substr(line, 1, RSTART - 1)
+        suffix = substr(line, RSTART + RLENGTH)
+
+        if (prefix !~ /^[[:space:]]*$/) {
+            report("merged_prefix_before_make_dir", line)
+        }
+
+        if (suffix !~ /^[[:space:]]*$/) {
+            report("merged_suffix_after_make_dir", line)
+        }
+
+        if (line ~ /: (warning|error): /) {
+            report("compiler_diag_merged_with_make_dir", line)
+        }
+    }
+}
+
+END {
+    print "{"
+    printf "  \"log_file\": \"%s\",\n", json_escape(log_file)
+    print "  \"issues\": ["
+    for (i = 1; i <= issues; i++) {
+        printf "    {\"line\": %d, \"type\": \"%s\", \"excerpt\": \"%s\"}", issue_line[i], json_escape(issue_type[i]), json_escape(issue_excerpt[i])
+        if (i < issues) {
+            print ","
+        } else {
+            print ""
+        }
+    }
+    print "  ],"
+    printf "  \"issue_count\": %d,\n", issues
+
+    if (issues == 0) {
+        print "  \"status\": \"no_obvious_corruption\""
+        print "}"
+        exit 0
+    }
+
+    print "  \"status\": \"corruption_detected\""
+    print "}"
+    exit 2
+}
+' "$log_file"
+awk_status=$?
+set -e
+
+if [ "$awk_status" -eq 2 ]; then
+    exit 2
+fi
+
+exit "$awk_status"

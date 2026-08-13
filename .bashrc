@@ -68,6 +68,7 @@ export CLICOLOR=1
 #===========================================================================
 # PROMPT SETTINGS
 #===========================================================================
+
 # Define colors
 if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
     # Define basic colors
@@ -106,6 +107,13 @@ if [ -x /usr/bin/tput ] && tput setaf 1 >&/dev/null; then
             PS1+="${Yellow}(${SSH_CLIENT%% *})${Color_Off} "
         fi
 
+        # Show VCO if MGC_HOME is set
+        if [ -n "$MGC_HOME" ]; then
+            local CURRENT_VCO="$(basename "$(dirname ${MGC_HOME})")"
+            local CURRENT_WA_NAME="$(basename "$(parent_dir ${MGC_HOME} 4)")"
+            PS1+="${Purple}(${CURRENT_WA_NAME}:${CURRENT_VCO})${Color_Off} "
+        fi
+
         # Show debian chroot if present
         PS1+="${debian_chroot:+($debian_chroot)}"
 
@@ -141,10 +149,9 @@ fi
 #===========================================================================
 # SOURCE EXTERNAL FILES
 #===========================================================================
-# Source local aliases if they exist
-if [ -f ~/Dotfiles/.aliases ]; then
-    source ~/Dotfiles/.aliases
-fi
+for f in ~/Dotfiles/bashrc.d/*; do
+    [ -r "$f" ] && source "$f"
+done
 
 # Source profile if it exists
 if [ -f ~/.profile ]; then

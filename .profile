@@ -8,29 +8,26 @@ else
     THIS_SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 fi
 
-export EDITOR="/usr/bin/vim"
+export EDITOR="vim"
 export VISUAL="$EDITOR"
 
-if [ -d /home/gitdet ]; then
-    export MANPATH="$MANPATH:/home/gitdet/share/man"
-fi
-    
 if [ -d /usr/mgc ]; then
     export VCO=$(CALIBRE_ENABLE_AOJ_BUILDS=1 /usr/mgc/bin/mgcvco)
 fi
-if [ -f /user/pete/lib/lserver_manager/lic_server_info ]; then
-    eval $(/user/pete/lib/lserver_manager/lic_server_info set -sh --tools calibre,corp)
-fi
-if [ -f ${THIS_SCRIPT_DIR}/siemens_utils ]; then
-    source ${THIS_SCRIPT_DIR}/siemens_utils
-fi
-if [ -f /user/icdet/bin/calgrid.sh ]; then
-    . /user/icdet/bin/calgrid.sh
-fi
 
-if [ -r "$HOME/.env" ]; then
-    source "$HOME/.env"
-fi
+export MANPATH
+MANPATH=""
+# We want to pick up git here as it's newer/better than /user/gitdet
+POSSIBLE_MANPATHS=(
+    /home/gitdet/share/man
+    /opt/puppetlabs/puppet/share/man
+)
+for mp in "${POSSIBLE_MANPATHS[@]}"; do
+    if [ -d "$mp" ]; then
+        MANPATH=${MANPATH}${MANPATH:+:}$mp
+    fi
+done
+MANPATH=${MANPATH}${MANPATH:+:}$(manpath -g)
 
 export PATH
 PATH=""
@@ -38,6 +35,7 @@ PATH=""
 POSSIBLE_PATHS=(
     ${HOME}/bin
     /usr/local/bin
+    /user/calibre/container-tools/bin
     /user/gitdet/bin
     /usr/mgc/bin
     /usr/mgc/peteoss/bin
@@ -46,19 +44,17 @@ POSSIBLE_PATHS=(
     /user/peteoss/bin
     /user/peteoss/${VCO}/bin
     /user/icdet/bin
-    /snap/bin
-    /opt/homebrew/bin
-    /opt/homebrew/sbin
-    /usr/local/bin
-    /usr/local/sbin
     /bin
     /usr/bin
-    /sbin
-    /usr/sbin
     /usr/opt/bin
     /usr/opt/tv
+    /usr/opt/udb_latest # For udb
+    /user/cqi/toolsets/any/bin
     /user/pevtools/bin
     ${HOME}/.local/bin
+    /snap/bin
+    /opt/homebrew/bin
+    /usr/local/bin
     ${THIS_SCRIPT_DIR}/pushover
     ${THIS_SCRIPT_DIR}/bin
     ${THIS_SCRIPT_DIR}/siemens/bin
@@ -72,3 +68,20 @@ for p in "${POSSIBLE_PATHS[@]}"; do
         PATH=${PATH}${PATH:+:}$p
     fi
 done
+
+
+if [ -f /user/pete/bin/env_init.sh ]; then
+    # Licensing server imports - env_init.sh gives us the lserver command among other things
+    . /user/pete/bin/env_init.sh
+    lserver set --tools calibre,tv
+fi
+if [ -f ${THIS_SCRIPT_DIR}/siemens_utils ]; then
+    source ${THIS_SCRIPT_DIR}/siemens_utils
+fi
+if [ -f /user/icdet/bin/calgrid.sh ]; then
+    . /user/icdet/bin/calgrid.sh
+fi
+
+if [ -r "$HOME/.env" ]; then
+    source "$HOME/.env"
+fi

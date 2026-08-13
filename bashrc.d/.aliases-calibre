@@ -1,0 +1,47 @@
+
+if [ ! -d "/wv/icdet/work_areas" ] || [ ! -d "/wv/pevtools/bin" ]; then
+    return
+fi
+    # Useful alias to=point MGC_HOME at latest build (d_top_last is a symlink that always points at the latest TOT build):
+alias top_cal="export MGC_HOME=/wv/icdet/work_areas/d_top_last/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_monday="export MGC_HOME=/wv/icdet/work_areas/d_monday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_tuesday="export MGC_HOME=/wv/icdet/work_areas/d_tuesday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_wednesday="export MGC_HOME=/wv/icdet/work_areas/d_wednesday/ic/ic_superproj/${VCO}/Mgc_home"
+alias d_thursday="export MGC_HOME=/wv/icdet/work_areas/d_thursday/ic/ic_superproj/${VCO}/Mgc_home"
+    alias d_friday="export MGC_HOME=/wv/icdet/work_areas/d_friday/ic/ic_superproj/${VCO}/Mgc_home"
+
+
+
+# Dynamic Calibre Alias Generator
+for dir in /wv/icdet/work_areas/calibre_*; do
+    if [ -d "$dir" ]; then
+        # Extract YYYY_Q from directory name (e.g., calibre_2016_1 -> 2016_1)
+        ver_raw=$(basename "$dir" | sed 's/calibre_//')
+        
+        # Split into Year and Quarter
+        year_full=$(echo "$ver_raw" | cut -d'_' -f1)
+        qtr=$(echo "$ver_raw" | cut -d'_' -f2)
+        
+        # Format year: 2008 -> 8, 2016 -> 16
+        year_short=$(echo "$year_full" | sed 's/^20//' | sed 's/^0//')
+        
+        # Define the alias
+        # Note: We escape ${VCO} so it is evaluated when the alias is CALLED, not defined.
+        alias "${year_short}.${qtr}_cal"="export MGC_HOME=$dir/ic/ic_superproj/\${VCO}/Mgc_home"
+    fi
+done
+
+alias build_aoj='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -build aoj'
+alias build_rh7='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat7*"'
+alias build_rh8='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat8*"'
+alias build_aok='build_rh8'
+alias build_rh9='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat9*"'
+
+alias build_sles11_aoj='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles11*,microarch=haswell|broadwell|skylake|kabylake"'
+alias build_sles12_aoj='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=sles12*,microarch=haswell|broadwell|skylake|kabylake"'
+
+alias build_gpu='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu'
+alias build_gpu_2='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu -l "model=DL380G10-48-3300-768"'
+alias build_gpu_4='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -forceproject gpu -l "model=XL270dG10-48-3300-1536"'
+
+alias build_aaw='source /u/sge/sge6/default/common/settings.csh; qrsh -v peak:0 -l "h_rt=86400,arch=lx-arm64" -b y /usr/bin/xterm'
