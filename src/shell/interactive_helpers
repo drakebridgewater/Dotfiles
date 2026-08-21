@@ -1,0 +1,13 @@
+# confirm_continue: Interactive confirmation prompt for user
+# Usage: confirm_continue
+# Purpose: Pause execution in interactive mode to allow user review before proceeding
+# Returns: 0 on confirmation (Y/y), 1 on abort (any other key)
+confirm_continue() {
+    if [ "$INTERACTIVE" -eq 1 ]; then
+        read -r -p "Press Y to continue, any other key to abort: " response
+        case "$response" in
+            [Yy]) ;;
+            *) echo "Aborting."; return  1 ;;
+        esac
+    fi
+}

@@ -1,18 +1,5 @@
 
-
-# confirm_continue: Interactive confirmation prompt for user
-# Usage: confirm_continue
-# Purpose: Pause execution in interactive mode to allow user review before proceeding
-# Returns: 0 on confirmation (Y/y), 1 on abort (any other key)
-confirm_continue() {
-    if [ "$INTERACTIVE" -eq 1 ]; then
-        read -r -p "Press Y to continue, any other key to abort: " response
-        case "$response" in
-            [Yy]) ;;
-            *) echo "Aborting."; return  1 ;;
-        esac
-    fi
-}
+source ~/Dotfiles/bashrc.d/logging
 
 # Validate that a named variable is set and non-empty.
 check_variable() {
@@ -494,7 +481,9 @@ function getSrcDir() {
   local entering_directory_line=$1
   local vco=$2
   dir_path=$(echo "$entering_directory_line" | sed -E "s/.*Entering directory '\/.*\/(ic\/.*)\/${vco}\/.*/\1/")
-  echo "\$IWA/$dir_path/$vco"
+  # short vco is the string before the frist -
+  local short_vco=$(echo "$vco" | sed -E "s/-.*//")
+  echo "\$IWA/$dir_path/$short_vco"
 }
 
 function log() {
@@ -647,7 +636,7 @@ function check_git_consistency() {
 
   # Get list of SHAs
   if [ "$unique_result_count" -gt 1 ]; then
-    echo "ERROR: Found $unique_result_count different results!"
+    error "Found $unique_result_count different results!"
     echo "$result" | awk '{
             sha = $1;
             repo = substr($0, length(sha) + 2);
@@ -694,18 +683,18 @@ function make_workareas() {
     local original_directory=$(pwd)
 
     if [ -z "$IWA" ]; then
-        echo "Error: IWA variable is not set. Please provide the IWA path as the second argument."
+        error "IWA variable is not set. Please provide the IWA path as the second argument."
         return 1
     fi
 
     IWA=$(realpath "$IWA") || return 1
 
     if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
+        error "'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
         return 1
     fi
     if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set. Please provide the BUILD_VCO as the first argument."
+        error "BUILD_VCO variable is not set. Please provide the BUILD_VCO as the first argument."
         return 1
     fi
 
@@ -718,7 +707,7 @@ function make_workareas() {
           # Check if the BUILD_VCO directory already exists
           if [ ! -d "${BUILD_VCO}" ]; then
               mkwa . . "$BUILD_VCO" -newdir || {
-                  echo "Error: Failed to create work area for ${dir}/${BUILD_VCO}."
+                  error "Failed to create work area for ${dir}/${BUILD_VCO}."
                   cd "${original_directory}" || exit
                   return 1
               }
@@ -740,7 +729,7 @@ function remove_workarea() {
         IWA="${current_dir}"
     fi
     if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
+        error "'ic' directory not found in ${IWA}. Please run this script from the root of your work area."
         return 1
     fi
     if [ -z "$1" ]; then
@@ -748,7 +737,7 @@ function remove_workarea() {
     fi
     local BUILD_VCO=${1:-$BUILD_VCO}
     if [ -z "$BUILD_VCO" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        error "BUILD_VCO variable is not set and VCO is also not set."
         return 1
     fi
 
@@ -824,6 +813,7 @@ get_make_cmd() {
 
     if echo "${BUILD_VCO}" | grep -Eq '^aaw'; then
         echo "AAW VCO detected, using dockermake" >&2
+        export PATH=/user/calibre/container-tools/bin:$PATH
         RESOLVED_DOCKERMAKE=$(command -v dockermake)
         if [ -z "${RESOLVED_DOCKERMAKE}" ]; then
             error "dockermake command not found in PATH, but BUILD_VCO indicates an AAW build. Please ensure dockermake is installed and in the PATH."
@@ -840,24 +830,105 @@ get_make_cmd() {
     fi
 }
 
+_verify_vco_host_setup() {
+  # aok supports RHEL-family 8-10, aoj supports RHEL-family 7,
+  # soa supports SLES, and aaw requires a Linux ARM host.
+  if [ -z "${BUILD_VCO:-}" ]; then
+        error "BUILD_VCO variable is not set."
+        return 1
+    fi
+
+  local host_os host_arch host_id host_id_like host_version_id host_version_major
+  host_os=$(uname -s) || return 1
+  host_arch=$(uname -m) || return 1
+  if [ "${host_os}" != "Linux" ]; then
+    error "Unsupported host OS: ${host_os}"
+    return 1
+  fi
+
+  if [ ! -r /etc/os-release ]; then
+    error "Cannot determine Linux distribution: /etc/os-release is not readable."
+    return 1
+  fi
+
+  local ID ID_LIKE VERSION_ID
+  . /etc/os-release
+  host_id=${ID:-}
+  host_id_like=${ID_LIKE:-}
+  host_version_id=${VERSION_ID:-}
+  host_version_major=${host_version_id%%.*}
+
+  local host_is_rhel_family=0
+  case "${host_id}" in
+    rhel|rocky|almalinux|centos|ol)
+      host_is_rhel_family=1
+      ;;
+    *)
+      case " ${host_id_like} " in
+        *" rhel "*) host_is_rhel_family=1 ;;
+      esac
+      ;;
+  esac
+
+  case "${BUILD_VCO}" in
+    aaw|aaw-*)
+      case "${host_arch}" in
+        arm|arm64|aarch64|armv[5-8]*|armv9*) ;;
+        *)
+          error "AAW VCO requires an ARM host; detected architecture: ${host_arch}."
+          return 1
+          ;;
+      esac
+      ;;
+    aok|aok-*)
+      if [ "${host_is_rhel_family}" -ne 1 ] ||
+         ! case "${host_version_major}" in 8|9|10) true ;; *) false ;; esac; then
+        error "AOK VCO requires a RHEL-family 8, 9, or 10 host; detected ${host_id} ${host_version_id}."
+        return 1
+      fi
+      ;;
+    aoj|aoj-*)
+      if [ "${host_is_rhel_family}" -ne 1 ] || [ "${host_version_major}" != "7" ]; then
+        error "AOJ VCO requires a RHEL-family 7 host; detected ${host_id} ${host_version_id}."
+        return 1
+      fi
+      ;;
+    soa|soa-*)
+      case "${host_id}" in
+        sles) ;;
+        *)
+          error "SOA VCO requires a SLES host; detected ${host_id} ${host_version_id}."
+          return 1
+          ;;
+      esac
+      ;;
+    *)
+      error "Unsupported BUILD_VCO '${BUILD_VCO}'. Expected an aok, aaw, aoj, or soa VCO."
+      return 1
+      ;;
+    esac
+
+  return 0
+}
+
 # Shared preamble for the mk_* helpers: resolves IWA, the build log and the VCO,
 # then prepares MAKE_CMD and the gmake parallelism/output settings.
 # Exposes the resolved VCO as MK_BUILD_VCO so the caller's BUILD_VCO is untouched.
 _mk_setup() {
     source /user/icdet/bin/detalias.sh
     if [ -z "${BUILD_LOG_PATH}" ]; then
-        echo "Error: BUILD_LOG_PATH variable is not set using stdout"
+        error "BUILD_LOG_PATH variable is not set using stdout"
         BUILD_LOG_PATH="/dev/stdout"
     fi
     IWA=$(realpath "${IWA:-$(pwd)}")
     if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        error "'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
         return 1
     fi
 
     MK_BUILD_VCO=${BUILD_VCO:-$VCO}
     if [ -z "${MK_BUILD_VCO}" ]; then
-        echo "Error: BUILD_VCO variable is not set and VCO is also not set."
+        error "BUILD_VCO variable is not set and VCO is also not set."
         return 1
     fi
 
@@ -872,20 +943,32 @@ _mk_run() {
     local subdir=$1
     shift
     (
+        # pipefail so a make failure is not masked by tee's exit status.
+        set -o pipefail
         cd "${IWA}/ic/${subdir}/${MK_BUILD_VCO}" || exit 1
         cglu || sglu || {
-            echo "Error: cglu or sglu failed. Check the build log at ${BUILD_LOG_PATH} for details."
+            error "cglu or sglu failed. Check the build log at ${BUILD_LOG_PATH} for details."
             exit 1
         }
-        "${MAKE_CMD[@]}" "$@" 2>&1 | tee -a "${BUILD_LOG_PATH}"
+        if [ "${BUILD_LOG_PATH}" = "/dev/stdout" ]; then
+            "${MAKE_CMD[@]}" "$@"
+        else
+            "${MAKE_CMD[@]}" "$@" 2>&1 | tee -a "${BUILD_LOG_PATH}"
+        fi
     )
 }
 
-# Fail if the build log recorded compiler errors. Skipped when logging to stdout.
+# Fail if make exited non-zero, or if the build log recorded compiler errors.
+# Usage: _mk_check_log <label> <make-exit-status>
 _mk_check_log() {
     local label=$1
+    local rc=${2:-0}
+    if [ "${rc}" -ne 0 ]; then
+        error "${label} failed (exit ${rc}). Check the build log at ${BUILD_LOG_PATH} for details."
+        return 1
+    fi
     if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ] && grep -q -i "error: " "${BUILD_LOG_PATH}"; then
-        echo "Error: ${label} failed. Check the build log at ${BUILD_LOG_PATH} for details."
+        error "${label} failed. Check the build log at ${BUILD_LOG_PATH} for details."
         return 1
     fi
 }
@@ -903,7 +986,7 @@ function make_cxx_warn_flags() {
 
     echo "Running mk_imports and imports to enable cxx_warn_flags generation"
     mk_imports || {
-        echo "Error: imports failed. Check the build log at ${BUILD_LOG_PATH} for details."
+        error "imports failed. Check the build log at ${BUILD_LOG_PATH} for details."
         return 1
     }
 
@@ -917,7 +1000,7 @@ function mk_ic_hdr() {
 
     echo "Current directory is $(pwd)" >> "${BUILD_LOG_PATH}"
     _mk_run lv ic_hdr
-    _mk_check_log ic_hdr
+    _mk_check_log ic_hdr $?
 }
 
 function mk_euv() {
@@ -930,7 +1013,7 @@ function mk_euv() {
     else
         echo "EUV directory not found, skipping EUV build"
     fi
-    _mk_check_log euv
+    _mk_check_log euv $?
 }
 
 function mk_lcl_libs() {
@@ -938,7 +1021,7 @@ function mk_lcl_libs() {
     _mk_setup || return 1
 
     _mk_run lv lcl_lib lcl_olib
-    _mk_check_log lcl_libs
+    _mk_check_log lcl_libs $?
 }
 
 function mk_lcl_exec() {
@@ -946,7 +1029,7 @@ function mk_lcl_exec() {
     _mk_setup || return 1
 
     _mk_run lv lcl_exec
-    _mk_check_log lcl_exec
+    _mk_check_log lcl_exec $?
 }
 
 function mk_ic_create_deps() {
@@ -954,7 +1037,15 @@ function mk_ic_create_deps() {
     _mk_setup || return 1
 
     _mk_run lv ic_create_deps
-    _mk_check_log ic_create_deps
+    _mk_check_log ic_create_deps $?
+}
+
+function mk_systests() {
+    echo "Starting mk_systests"
+    _mk_setup || return 1
+
+    _mk_run lv systests
+    _mk_check_log systests $?
 }
 
 function mk_lv_verify() {
@@ -962,7 +1053,7 @@ function mk_lv_verify() {
     _mk_setup || return 1
 
     _mk_run lv lv_verify
-    _mk_check_log lv_verify
+    _mk_check_log lv_verify $?
 }
 
 
@@ -973,27 +1064,30 @@ _mk_build_start() {
     local caller=$1
     IWA=${2}
     BUILD_VCO=${3}
-    BUILD_LOG_PATH=${4}
+    BUILD_LOG_PATH=${4:="/dev/stdout"}
 
-    if [ -z "${IWA}" ] || [ -z "${BUILD_VCO}" ] || [ -z "${BUILD_LOG_PATH}" ]; then
+    if [ -z "${IWA}" ] || [ -z "${BUILD_VCO}" ] ; then
         echo "Usage: ${caller} <IWA> <BUILD_VCO> <BUILD_LOG_PATH>"
         return 1
     fi
+    _verify_vco_host_setup || return 1
     source /user/icdet/bin/detalias.sh
     IWA=$(realpath "${IWA}")
     export IWA
     export BUILD_VCO
+
+    if [ "${BUILD_LOG_PATH}" != "/dev/stdout" ]; then
+        touch "${BUILD_LOG_PATH}"
+        BUILD_LOG_PATH=$(realpath "${BUILD_LOG_PATH}")
+        # Move build log to RETRY_${BUILD_LOG_PATH} if it exists (force)
+        if [ -f "${BUILD_LOG_PATH}" ]; then
+            mv -f "${BUILD_LOG_PATH}" "RETRY_${BUILD_LOG_PATH}"
+        fi
+    fi
     export BUILD_LOG_PATH
-    touch "${BUILD_LOG_PATH}"
-    BUILD_LOG_PATH=$(realpath "${BUILD_LOG_PATH}")
     echo "Build log path: ${BUILD_LOG_PATH}"
     echo "Build VCO: ${BUILD_VCO}"
     echo "IWA: ${IWA}"
-
-    # Move build log to RETRY_${BUILD_LOG_PATH} if it exists (force)
-    if [ -f "${BUILD_LOG_PATH}" ]; then
-        mv -f "${BUILD_LOG_PATH}" "RETRY_${BUILD_LOG_PATH}"
-    fi
 
     echo "Starting build process..."
     setup_build_env
@@ -1006,29 +1100,30 @@ function mk_calibre() {
     _mk_build_start mk_calibre "$@" || return 1
 
     echo "Building cxx_warn_flags, lcl_libs, and lcl_exec..."
-    make_cxx_warn_flags
-    mk_lcl_exec
-    mk_ic_create_deps
+    make_cxx_warn_flags || return 1
+    mk_lcl_exec || return 1
+    mk_ic_create_deps || return 1
 }
 
 function mk_calibre_with_systest() {
     _mk_build_start mk_calibre_with_systest "$@" || return 1
 
     echo "Building cxx_warn_flags, lcl_libs, and lcl_exec..."
-    make_cxx_warn_flags
-    mk_lcl_exec
-    mk_ic_create_deps
-    mk_lv_verify
+    make_cxx_warn_flags || return 1
+    mk_lcl_exec || return 1
+    mk_ic_create_deps || return 1
+    mk_systests || return 1
+    mk_lv_verify || return 1
 }
 
 function mk_all() {
     _mk_build_start mk_all "$@" || return 1
 
     echo "Building cxx_warn_flags, ic_hdr, euv, and lcl_libs..."
-    make_cxx_warn_flags
-    mk_ic_hdr
-    mk_euv
-    mk_lcl_libs
+    make_cxx_warn_flags || return 1
+    mk_ic_hdr || return 1
+    mk_euv || return 1
+    mk_lcl_libs || return 1
 }
 
 function update_git_repos() {
@@ -1037,7 +1132,7 @@ function update_git_repos() {
         GIT_TAG="trunk"
     fi
     if [ ! -d "${IWA}/ic" ]; then
-        echo "Error: 'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
+        error "'ic' directory not found in '${IWA}'. Please run this script from the root of your work area."
         return 1
     fi
 
@@ -1143,175 +1238,6 @@ function mkwa_many_old_calibre_builds() {
   fi
 
   for i in {1..9}; do git mkwa -Tsrc -d 2025_0${i}_01 nightly_20250${i}01; done
-}
-
-function build_many_old_calibre_builds() {
-  export BUILD_VCO=${BUILD_VCO:-aok-clang-nocuda-warn}
-  starting_dir=$(pwd)
-  echo "Are you sure you want to build all old calibre builds in /wv/drabri2r_nobackup/calibre_builds/? (y/n)"
-  read -r answer
-  if [ "$answer" != "y" ]; then
-    echo "Aborting."
-    return 1
-  fi
-  echo "BUILD_VCO is set to ${BUILD_VCO}. Is this correct? (y/n)"
-  read -r answer
-  if [ "$answer" != "y" ]; then
-    echo "Aborting."
-    return 1
-  fi
-
-  for d in  /wv/drabri2r_nobackup/calibre_builds/*; do
-    cd $d
-    # if d name is "calibre_2025_WA01" skip
-    if [[ "$(basename "$d")" == "calibre_2025_WA01" ]]; then
-        echo "Skipping $(pwd) as it is calibre_2025_WA01"
-        continue
-    fi
-    if [ ! -d "$(pwd)/ic/lv/" ]; then
-        echo "Skipping $(pwd) as ic/lv/ does not exist"
-        continue
-    fi
-    # check for a build log with the last line reporting ABORTED
-    find_result=$(find . -maxdepth 2 -type f -name "*.BUILD.${BUILD_VCO}" )
-    if [ -n "$find_result" ]; then
-        last_line=$(tail -n 1 "$find_result")
-        if [[ "$last_line" != *"ABORTED"* && "$last_line" != *"FAILED"* ]]; then
-            echo "Skipping $(pwd) as last build was successful."
-            continue
-        fi
-        remove_workarea
-    fi
-
-    echo "Building in $(pwd) with BUILD_VCO ${BUILD_VCO}"
-    export IWA=$(pwd)
-    export LOG_DIR=$(pwd)
-    export LOG_FILENAME=$(basename $(pwd)).BUILD.$BUILD_VCO
-    make_workareas
-    export CALIBRE_DEVELOPMENT_TOOLS_ROOT=/home/drabri2r/Projects/cdt/calibre-development-tools && /home/drabri2r/Projects/cdt/calibre-development-tools/src/shell/build_vco -vco ${BUILD_VCO} -iwa ${IWA} -log_dir ${LOG_DIR} -log_filename ${LOG_FILENAME}
-    cd -
-  done
-  cd "${starting_dir}" || exit
-}
-
-function get_warnings_on_all_build_logs() {
-  local search_dir="${1:-.}"
-  local pattern="\.BUILD\.a"
-  local max_depth="${3:-3}"
-  local vco
-
-  local warning_cmd
-  local warning_script="/home/drabri2r/Projects/cdt/calibre-development-tools/bin/getWarnings"
-  local resolved_search_dir
-  resolved_search_dir=$(realpath "$search_dir")
-
-  echo "Searching for warnings in build logs under $resolved_search_dir"
-
-  find "$resolved_search_dir" -maxdepth "$max_depth" -type f -name "*$pattern*" | while read logfile; do
-      vco=$(echo "$logfile" | sed -E 's/.*\.BUILD\.(.*)/\1/')
-      log_file_directory=$(dirname "$logfile")
-      output_file="$log_file_directory/${vco}.warnings.json"
-      stats_output_file="$log_file_directory/${vco}.cwarn_summary.json"
-      local iwa=$(realpath "${log_file_directory}/../")
-      warning_cmd="$warning_script --logfile $logfile --iwa $iwa --build-vco $vco --output $output_file --stats-output $stats_output_file"
-      echo "----- Warnings in $logfile -----"
-      echo "Running command: $warning_cmd"
-      eval "$warning_cmd"
-      echo "Warnings saved to $output_file"
-      echo "--------------------------------"
-  done
-}
-
-GITLAB_HOST_LIST=(
-  cal-arm-19
-  cal-arm-19-cdtop
-  cdtop-bld01-r10
-  cdtop-bld01-r7
-  cdtop-bld01-r8
-  cdtop-bld02-r10
-  cdtop-bld02-r7 
-  cdtop-bld02-r8 
-  cdtop-oss-r7
-  godzilla 
-  congo 
-  orw-bigbuild-p01
-  orw-calapptainer-01-r8
-  orw-calapptainer-02-r8 
-  orw-calci-dkr-1
-  orw-calci-r8-1
-  orw-calci-r8-2 
-  orw-calci-r8-3 
-  orw-calci-r8-4 
-  orw-calci-r8-7 
-  orw-calci-r8-8 
-  orw-calci-s15-1 
-  orw-cdtops15s5-01 
-  orw-gitlab-runner1-r7 
-  orw-gitlab-runner11-r8 
-  orw-gitlab-runner12-r8 
-  orw-gitlab-runner13-r8
-  orw-gitlab-runner3-r6 
-  orw-gitlab-runner4-r6 
-  orw-gitlab-runner5-r6 
-  orw-gitlab-runner6-r8 
-  orw-gitlab-runner7-r8 
-  wilder
-)
-
-function run_cmd_on_many() {
-  # Run a specified command on multiple remote servers via SSH.
-  # Usage: run_cmd_on_many "<command>" [user@server1 user@server2 ...]
-  # Example: run_cmd_on_many "uptime; df -h /" user@server1 user@server2 user@server3
-  COMMAND_TO_RUN="$1"
-  SERVER_LIST=()
-  # all other arguments are servers
-  for arg in "$@"; do
-      if [ "$arg" != "$COMMAND_TO_RUN" ]; then
-          SERVER_LIST+=("$arg.wv.mentorg.com")
-      fi
-  done
-  if [ "${#SERVER_LIST[@]}" -eq 0 ]; then
-      echo "No servers provided. Please provide at least one server."
-      return 1
-  fi
-  echo "Starting remote command execution on multiple servers with enhanced debugging..."
-  echo "-----------------------------------------------------------------"
-
-  # Loop through each server in our list
-  for SERVER_ENTRY in "${SERVER_LIST[@]}"; do
-
-      # Execute the command remotely using SSH with verbose output
-      # -v: Verbose SSH output (use -vv or -vvv for more detail if needed)
-      # -o BatchMode=yes: Prevents SSH from asking for passwords if key auth fails.
-      # -o ConnectTimeout=10: Increased timeout (in seconds) for connection attempts.
-      #                      Adjust as needed for your network.
-      # -T: Disables pseudo-terminal allocation. Good for non-interactive commands.
-      # 2>&1: Redirects stderr to stdout, so all SSH and remote command output goes to the log.
-      ssh -o BatchMode=yes -o ConnectTimeout=10 -T "$SERVER_ENTRY" "$COMMAND_TO_RUN"
-
-      # Check the exit status of the SSH command (which now reflects the remote command's exit status)
-      SSH_EXIT_STATUS=$?
-
-      if [ "$SSH_EXIT_STATUS" -eq 0 ]; then
-          echo "✅ Command executed successfully on $SERVER_ENTRY."
-      else
-          echo "❌ ERROR: Command failed or SSH connection issue on $SERVER_ENTRY. Exit code: $SSH_EXIT_STATUS" >&2
-      fi
-      echo "-----------------------------------------------------------------"
-  done
-
-  printf "\nRemote command execution completed on all servers.\n"
-}
-
-function pgrep_on_gitlab_hosts() {
-  # Usage: pgrep_on_gitlab_hosts <process_name>
-  # This is mostly here as an example of how to use run_cmd_on_many function.
-  local process_name="$1"
-  if [ -z "$process_name" ]; then
-    echo "Usage: pgrep_on_gitlab_hosts <process_name>"
-    return 1
-  fi
-  run_cmd_on_many "pgrep -fl $process_name" "${GITLAB_HOST_LIST[@]}"
 }
 
 function setup_pypi_scanner() {

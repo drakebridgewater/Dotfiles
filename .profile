@@ -17,17 +17,19 @@ fi
 
 export MANPATH
 MANPATH=""
-# We want to pick up git here as it's newer/better than /user/gitdet
-POSSIBLE_MANPATHS=(
-    /home/gitdet/share/man
-    /opt/puppetlabs/puppet/share/man
-)
-for mp in "${POSSIBLE_MANPATHS[@]}"; do
-    if [ -d "$mp" ]; then
-        MANPATH=${MANPATH}${MANPATH:+:}$mp
-    fi
-done
-MANPATH=${MANPATH}${MANPATH:+:}$(manpath -g)
+if [ command -v manpath >/dev/null 2>&1 ]; then
+    # We want to pick up git here as it's newer/better than /user/gitdet
+    POSSIBLE_MANPATHS=(
+        /home/gitdet/share/man
+        /opt/puppetlabs/puppet/share/man
+    )
+    for mp in "${POSSIBLE_MANPATHS[@]}"; do
+        if [ -d "$mp" ]; then
+            MANPATH=${MANPATH}${MANPATH:+:}$mp
+        fi
+    done
+    MANPATH=${MANPATH}${MANPATH:+:}$(manpath -g)
+fi
 
 export PATH
 PATH=""
