@@ -234,7 +234,7 @@ for sha in "${SHAS[@]}"; do
     if git cherry-pick "$sha" 2>/dev/null; then
         ok "Applied: $SUBJECT"
         debug "New HEAD after pick: $(git rev-parse HEAD)"
-        ((APPLIED++))
+        APPLIED=$((APPLIED + 1))
     else
         echo ""
         err "CONFLICT on: $SUBJECT"
