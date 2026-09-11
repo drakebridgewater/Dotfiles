@@ -99,6 +99,10 @@ plugins=(
 [[ -n "$(command -v docker)" ]] && plugins+=(docker)
 [[ -n "$(command -v kubectl)" ]] && plugins+=(kubectl)
 
+# Custom completions (e.g. siemens_utils functions). Must be added before
+# oh-my-zsh.sh runs compinit so the #compdef files below get autoloaded.
+fpath=("$HOME/Dotfiles/zsh/completions" $fpath)
+
 source $ZSH/oh-my-zsh.sh
 
 #===========================================================================
@@ -363,3 +367,7 @@ if command -v /opt/homebrew/bin/brew >/dev/null 2>&1; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
   export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 fi
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion

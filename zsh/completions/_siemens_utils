@@ -1,0 +1,71 @@
+#compdef check_git_consistency check_git_tag_consistency finderror finderror_json getEnteringDirectory getFailingBuildCmd getFirstErrors getOGBuildCmd getBuildCmd getPreviousBuildFile getVCOFromLogFilePath make_workareas mk_all mk_calibre mk_calibre_with_systest remove_workarea set_gmake_output_sync split_log_file warnings_for_file
+
+# Completion for the shell functions defined in ../../siemens_utils.
+local -a vco_prefixes sync_modes
+
+# Grounded in the validation logic in siemens_utils' _verify_vco_host_setup.
+vco_prefixes=(aok aaw aoj soa)
+# Grounded in the --output-sync options documented in set_gmake_output_sync.
+sync_modes=(none line target recurse)
+
+case "${words[1]}" in
+  tags_for)
+    _arguments \
+      '1:project name:' \
+      '2:tag name:'
+    ;;
+  finderror|finderror_json)
+    _arguments \
+      '1:build log file:_files' \
+      '2:lines of context before error:' \
+      '3:max distance from directory line:'
+    ;;
+  warnings_for_file)
+    _arguments \
+      '1:getWarnings JSON file:_files' \
+      '2:filename to search for:'
+    ;;
+  getVCOFromLogFilePath|getFirstErrors|getEnteringDirectory|getFailingBuildCmd)
+    _arguments '1:build log file:_files'
+    ;;
+  getPreviousBuildFile)
+    _arguments \
+      '1:build log file:_files' \
+      '2:line number:'
+    ;;
+  getOGBuildCmd|getBuildCmd)
+    _arguments \
+      '1:offending file name:' \
+      '2:build log file:_files'
+    ;;
+  split_log_file)
+    _arguments \
+      '1:input log file:_files' \
+      '2:output file prefix:'
+    ;;
+  check_git_consistency|check_git_tag_consistency)
+    _arguments \
+      '1:search directory:_files -/' \
+      '2:directory name pattern:' \
+      '3:max find depth:' \
+      '4:use git tags instead of commit hashes:(0 1)' \
+      '5:tag prefix:'
+    ;;
+  make_workareas)
+    _arguments \
+      '1:IWA path:_files -/' \
+      "2:BUILD_VCO:(${vco_prefixes[*]})"
+    ;;
+  remove_workarea)
+    _arguments "1:BUILD_VCO:(${vco_prefixes[*]})"
+    ;;
+  set_gmake_output_sync)
+    _arguments "1:output-sync mode:(${sync_modes[*]})"
+    ;;
+  mk_calibre|mk_calibre_with_systest|mk_all)
+    _arguments \
+      '1:IWA path:_files -/' \
+      "2:BUILD_VCO:(${vco_prefixes[*]})" \
+      '3:build log path:_files'
+    ;;
+esac

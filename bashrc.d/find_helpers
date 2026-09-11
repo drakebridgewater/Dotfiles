@@ -1,0 +1,79 @@
+
+function remove_matching_lines() {
+    # Interactively remove lines matching a pattern from a file, or from every
+    # text file under a directory (recursively), confirming each match first.
+    local context=0 force=0 opt OPTIND
+
+    while getopts ":C:fh" opt; do
+        case "$opt" in
+            C)
+                [[ "$OPTARG" =~ ^[0-9]+$ ]] || { echo "remove_matching_lines: -C requires a number" >&2; return 1; }
+                context="$OPTARG"
+                ;;
+            f) force=1 ;;
+            h)
+                cat <<-'EOF'
+				Usage: remove_matching_lines [-C NUM] [-f] [TARGET...] PATTERN
+				  -C NUM       show NUM lines of context around each match before confirming
+				  -f           delete matches without confirmation
+				  TARGET       file, or directory to search recursively (default: .)
+				  PATTERN      grep -E pattern of lines to remove (required, last argument)
+				EOF
+                return 0
+                ;;
+            :) echo "remove_matching_lines: option -$OPTARG requires an argument" >&2; return 1 ;;
+            \?) echo "remove_matching_lines: unknown option -$OPTARG" >&2; return 1 ;;
+        esac
+    done
+    shift $((OPTIND - 1))
+
+    if [ $# -eq 0 ]; then
+        echo "Usage: remove_matching_lines [-C NUM] [-f] [TARGET...] PATTERN" >&2
+        return 1
+    fi
+
+    local pattern="" arg targets=() nargs=$# idx=0
+    for arg in "$@"; do
+        idx=$((idx + 1))
+        if [ "$idx" -eq "$nargs" ]; then
+            pattern="$arg"
+        else
+            targets+=("$arg")
+        fi
+    done
+    [ ${#targets[@]} -eq 0 ] && targets=(".")
+
+    local target f line_no start end reply matches
+    for target in "${targets[@]}"; do
+        [ -e "$target" ] || { echo "remove_matching_lines: no such file or directory: $target" >&2; continue; }
+
+        # Read found files on fd 3 so the confirmation prompt can still use stdin.
+        while read -r -u 3 f; do
+            file --mime "$f" | grep -q 'charset=binary' && continue
+            grep -qE "$pattern" "$f" || continue
+
+            # Delete highest line numbers first so earlier line numbers stay valid.
+            matches=$(grep -nE "$pattern" "$f" | cut -d: -f1 | sort -rn)
+            for line_no in $matches; do
+                if [ "$force" -ne 1 ]; then
+                    echo "---"
+                    echo "File: $f (line $line_no)"
+                    if [ "$context" -gt 0 ]; then
+                        start=$((line_no - context)); [ "$start" -lt 1 ] && start=1
+                        end=$((line_no + context))
+                        sed -n "${start},${end}p" "$f"
+                    else
+                        sed -n "${line_no}p" "$f"
+                    fi
+                    printf 'Delete this line? [y/N] '
+                    read -r reply
+                    case "$reply" in
+                        [yY]*) ;;
+                        *) continue ;;
+                    esac
+                fi
+                sed -i "${line_no}d" "$f"
+            done
+        done 3< <(find "$target" -type f 2>/dev/null)
+    done
+}

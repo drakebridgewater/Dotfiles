@@ -38,7 +38,6 @@ applyTo:
 ### Directory Operations
 
 - Always check directories exist before `cd` operations
-- Use `pushd/popd` for directory stack management when navigating multiple locations
 - Provide graceful fallbacks when directories don't exist
 
 ## Configuration Management

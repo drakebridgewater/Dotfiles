@@ -1,0 +1,148 @@
+#!/bin/sh
+
+# p_cpu is an array.
+#   The physical machine may not have a cpu in every socket, so we can't rely on the
+#   the highest physical id number+1 as the count, so the length of p_cpu is the count.
+
+# ARM notes:
+# Marvell ThunderX2 on hp grid machines:
+#     CPU part  : 0x0af -- Marvell ThunderX2
+#     Features  : fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics cpuid asimdrdm
+# Ampere machines {left,middle,right}-arm machines:
+#     CPU part  : 0x0d0c
+#     Features  : fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp ssbs
+
+# Supported platforms: RHEL/Rocky/SLES 7-10 on x86_64/arm64, and macOS (Intel/Apple Silicon).
+os_name=$(uname -s)
+
+echo    "Host name:   " `uname -n`
+echo    "Architecture:" `uname -m`
+echo -n "OS Info:      "
+
+if [ "${os_name}" = "Darwin" ]; then
+    sw_vers 2>/dev/null | tr '\n' ' '
+    echo
+elif [ -e "/etc/os-release" ]; then
+    # os-release is the common source across RHEL/Rocky/SLES; redhat-release is kept as a fallback.
+    ( . /etc/os-release; echo "${PRETTY_NAME}" )
+elif [ -e "/etc/redhat-release" ]; then
+    cat /etc/redhat-release
+else
+    echo "unknown"
+fi
+
+echo -n "libc version: "
+if command -v ldd >/dev/null 2>&1; then
+    ldd --version 2>/dev/null | grep libc | cut -f4 -d' '
+else
+    echo "n/a (no ldd on this platform)"
+fi
+
+if [ "${os_name}" = "Darwin" ]; then
+    memBytes=$(sysctl -n hw.memsize 2>/dev/null)
+    echo "Memory:      " $((memBytes / 1024)) kB
+else
+    memInfo=$(grep MemTotal: /proc/meminfo | cut -d' ' -f2-  |  sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+    echo "Memory:      " ${memInfo}
+fi
+
+echo "Page size:   " `getconf PAGESIZE`
+
+echo -n "GPU:          "
+if [ "${os_name}" = "Darwin" ]; then
+    gpuModel=$(system_profiler SPDisplaysDataType 2>/dev/null | grep "Chipset Model" | head -1 | sed -e 's/^ *Chipset Model: *//')
+    if [ -n "${gpuModel}" ]; then
+        echo "${gpuModel}"
+    else
+        echo "No GPU found on host"
+    fi
+elif [ -x "/user/icdet/bin/inxi" ]; then
+    # do we have a GPU?
+    /user/icdet/bin/inxi -G 2>/dev/null | grep -q NVIDIA
+    nVidia=$?
+    if [ ${nVidia} -eq 0 ]
+    then
+        echo nVidia GPU support
+    else
+        echo "No GPU found on host"
+    fi
+else
+    echo "unknown (inxi not available on this host)"
+fi
+
+if [ "${os_name}" = "Darwin" ]; then
+    echo
+    echo "CPU model:   " $(sysctl -n machdep.cpu.brand_string 2>/dev/null || system_profiler SPHardwareDataType 2>/dev/null | awk -F': ' '/Chip/ {print $2}')
+    echo $(sysctl -n hw.physicalcpu 2>/dev/null) "physical cores,"  $(sysctl -n hw.logicalcpu 2>/dev/null) "logical CPU units"
+    echo
+    echo CPU details:
+    sysctl machdep.cpu hw.optional 2>/dev/null
+    echo "######################################"
+    exit 0
+fi
+
+cat /proc/cpuinfo | 
+awk -v FS=':' '
+  /^physical id/ { p_cpu[$2]=1 }
+  /^cpu cores/   { if(nb_cores<$2) { nb_cores=$2 } }
+  /^processor/   { if(nb_units<$2) { nb_units=$2 } }
+  /^model name/  { model=$2;
+                   found_model=1;
+                 }
+  /^CPU part/    {
+                   cpu_part=$2;
+                 }
+  /^Features/    {
+                   # 
+                   index_to_atomics=index($2,"atomics");
+                   index_to_dcpop=index($2,"dcpop");
+                   index_to_crc32=index($2,"crc32");
+                 }
+  /^flags/       {
+                   index_to_avx512f=index($2,"avx512f");
+                   index_to_avx2=index($2,"avx2");
+                   index_to_avx=index($2,"avx");
+                   index_to_sse3=index($2,"sse3");
+                 }
+
+  BEGIN {
+      found_model=0
+  }
+  END {
+   nb_units=(nb_units+1);
+
+   num_cpu=0 
+   for (x in p_cpu) { ++num_cpu }
+   if (num_cpu>1) { cpu_label="CPUs," } else { cpu_label="CPU," }
+
+   if (0<found_model) {
+       print "CPU model:  ",model;
+   } else {
+       # aaw is targeting a minimun cpu arch of armv8-a to support Thunder2X
+       if (0<index_to_dcpop)        { print "CPU:          supports armv8.2-a" }
+       else if (0<index_to_atomics) { print "CPU:          supports armv8.1-a" }
+       else                         { print "CPU:          supports armv8-a" }
+   }
+
+   if (0<index_to_avx512f)   { print "CPU:          supports avx512f" }
+   else if (0<index_to_avx2) { print "CPU:          supports avx2" }
+   else if (0<index_to_avx)  { print "CPU:          supports avx" }
+   else if (0<index_to_sse3) { print "CPU:          supports sse3" }
+   
+   print
+   if (0<nb_cores) {
+       print num_cpu,cpu_label,nb_cores,"physical cores per CPU"
+       print "total physical CPU units:", (num_cpu*nb_cores)
+       print " total logical CPU units:", nb_units
+   } else {
+       print nb_units,"CPUs"
+   }
+ }'
+echo 
+echo CPU details:
+if command -v lscpu >/dev/null 2>&1; then
+    lscpu
+else
+    echo "lscpu not available on this host"
+fi
+echo "######################################"

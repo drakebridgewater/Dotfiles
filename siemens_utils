@@ -1,4 +1,5 @@
 
+# zsh tab-completion for the functions below lives in zsh/completions/_siemens_utils
 source ~/Dotfiles/bashrc.d/logging
 
 # Validate that a named variable is set and non-empty.
@@ -29,6 +30,12 @@ check_variable() {
 
     unset var_name message print_only var_name
     return 0
+}
+
+function tags_for() {
+  local project=${1}
+  local tag=${2}
+  /usr/mgc/bin/cm_tag list ${tag} ${project} -mgc_server
 }
 
 function warnings_for_file() {
