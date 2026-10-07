@@ -1,0 +1,45 @@
+
+# zsh tab-completion for the functions below lives in shell/zsh/completions/_siemens_utils
+_dot_work_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]:-${(%):-%x}}" 2>/dev/null)")"
+: "${DOTFILES_DIR:=$(dirname "$(dirname "$_dot_work_dir")")}"
+source "${DOTFILES_DIR}/shell/common/logging"
+source "${_dot_work_dir}/build_log_analysis.sh"
+source "${_dot_work_dir}/symtools.sh"
+source "${_dot_work_dir}/building_calibre.sh"
+unset _dot_work_dir
+
+
+
+function tags_for() {
+  local project=${1}
+  local tag=${2}
+  /usr/mgc/bin/cm_tag list ${tag} ${project} -mgc_server
+}
+
+
+
+
+function setup_pypi_scanner() {
+  local _CURRENT_DIR
+  _CURRENT_DIR=$(pwd)
+  # are we in a python current environment
+  if [ -z "$VIRTUAL_ENV" ]; then
+      echo "Must be in a python virtual environment"
+      return 1
+  fi
+
+  if [ ! -d "$_CURRENT_DIR/standard-bom" ]; then
+      git clone git@code.siemens.com:sbom/standard-bom.git "$_CURRENT_DIR/standard-bom"
+  fi
+
+  if [ ! -d "$_CURRENT_DIR/pypi-scanner" ]; then
+      git clone git@code.siemens.com:sbom/scanners/pypi-scanner.git "$_CURRENT_DIR/pypi-scanner"
+  fi
+  cd "$_CURRENT_DIR"
+
+  cd "$_CURRENT_DIR/standard-bom"
+  pip install -e .
+
+  cd "$_CURRENT_DIR/pypi-scanner"
+  pip install -e .
+}

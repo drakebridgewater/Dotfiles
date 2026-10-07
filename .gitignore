@@ -3,6 +3,12 @@ __pycache__/
 *$py.class
 .env
 
+# local secrets - contains PATs/tokens
+config.yaml
+
+# generated report output
+work-report/
+
 # Pycharm
 .idea
 

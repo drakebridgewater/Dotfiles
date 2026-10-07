@@ -1,0 +1,40 @@
+# Copy to ~/.config/dotfiles/config.yaml and fill in.
+# Never commit the filled-in copy: it holds personal access tokens.
+
+repos:
+  - path: /path/to/your/repo
+    epics: [PROJ-1234]
+    git: git@example.com:group/repo.git
+    # Optional roadmap rendering for this repo
+    # roadmap:
+    #   json_path: /path/to/repo/docs/all_roadmap.json
+    #   output_path: /path/to/repo/docs/all_roadmap.svg
+
+# Leave unset to auto-detect from git config
+# author: ""
+
+gitlab:
+  base_url: "https://gitlab.example.com"
+  token: "${GITLAB_TOKEN}"
+  ssl_verify: true
+
+obsidian_vault: ""
+obsidian_folder: "Weekly Reports"
+days: 7
+output_dir: "work-report"
+
+atlassian:
+  base_url: "https://jira.example.com"
+  pat: "${ATLASSIAN_PAT}"
+  username: "your-username"
+  ssl_verify: true
+
+jira:
+  projects: [PROJ]
+
+confluence:
+  enabled: true
+  pat: "${CONFLUENCE_PAT}"
+  username: "your-username"
+  ssl_verify: true
+  base_url: "https://confluence.example.com"

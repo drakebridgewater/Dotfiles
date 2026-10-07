@@ -1,0 +1,203 @@
+# Customization for Oh my tmux! (https://github.com/gpakosz/.tmux)
+# A simplified and more maintainable configuration
+
+# -- session creation ----------------------------------------------------------
+
+# Don't prompt for session name when creating a new session
+tmux_conf_new_session_prompt=false
+
+# Don't retain current path when creating a new session
+tmux_conf_new_session_retain_current_path=false
+
+# -- windows & pane creation ---------------------------------------------------
+
+# Don't retain current path when creating a new window
+tmux_conf_new_window_retain_current_path=false
+
+# Don't try to reconnect ssh sessions in new windows
+tmux_conf_new_window_reconnect_ssh=false
+
+# Retain current path when creating a new pane
+tmux_conf_new_pane_retain_current_path=true
+
+# Don't try to reconnect ssh sessions in new panes
+tmux_conf_new_pane_reconnect_ssh=false
+
+# -- display -------------------------------------------------------------------
+
+# Use auto-detection for 24-bit color support
+tmux_conf_24b_colour=auto
+
+# -- theming -------------------------------------------------------------------
+
+# Use a simpler theme with fewer colors
+tmux_conf_theme=enabled
+
+# Simplified color palette (fewer colors)
+tmux_conf_theme_colour_1="#080808"    # dark gray
+tmux_conf_theme_colour_2="#4e4e4e"    # gray (inactive pane border)
+tmux_conf_theme_colour_3="#8a8a8a"    # light gray
+tmux_conf_theme_colour_4="#00afff"    # light blue
+tmux_conf_theme_colour_5="#ffff00"    # yellow
+tmux_conf_theme_colour_6="#080808"    # dark gray
+tmux_conf_theme_colour_7="#e4e4e4"    # white
+tmux_conf_theme_colour_8="#080808"    # dark gray
+tmux_conf_theme_colour_9="#ffff00"    # yellow
+tmux_conf_theme_colour_10="#ff00af"   # pink
+tmux_conf_theme_colour_11="#4C9900"   # green
+tmux_conf_theme_colour_12="#8a8a8a"   # light gray
+tmux_conf_theme_colour_13="#e4e4e4"   # white
+tmux_conf_theme_colour_14="#080808"   # dark gray
+tmux_conf_theme_colour_15="#080808"   # dark gray
+tmux_conf_theme_colour_16="#d70000"   # red
+tmux_conf_theme_colour_17="#e4e4e4"   # white
+
+# # Window status tab styling (active tab = colour_4 blue, inactive = colour_3 gray)
+tmux_conf_theme_window_status_fg="#8a8a8a"          # inactive: light gray text
+tmux_conf_theme_window_status_bg="#080808"          # inactive: dark background
+tmux_conf_theme_window_status_attr="none"
+tmux_conf_theme_window_status_current_fg="#080808"  # active: dark text on blue
+tmux_conf_theme_window_status_current_bg="#00afff"  # active: light blue background
+tmux_conf_theme_window_status_current_attr="bold"
+tmux_conf_theme_window_status_activity_fg="#ffff00" # alert: yellow text
+tmux_conf_theme_window_status_activity_bg="#080808"
+tmux_conf_theme_window_status_activity_attr="bold"
+
+# Message style (command prompt / alerts)
+tmux_conf_theme_message_fg="#e4e4e4"                # white text
+tmux_conf_theme_message_bg="#00afff"                # light blue background
+tmux_conf_theme_message_attr="bold"
+tmux_conf_theme_message_command_fg="#e4e4e4"
+tmux_conf_theme_message_command_bg="#4C9900"        # green background
+tmux_conf_theme_message_command_attr="bold"
+
+# Window style
+tmux_conf_theme_window_fg="default"
+tmux_conf_theme_window_bg="default"
+
+# Don't highlight focused pane (better for older systems)
+tmux_conf_theme_highlight_focused_pane=false
+
+# Use thin pane borders (better for older systems)
+tmux_conf_theme_pane_border_style=thin
+
+# Use simpler status line separators that work on all systems
+tmux_conf_theme_left_separator_main="|"
+tmux_conf_theme_left_separator_sub="|"
+tmux_conf_theme_right_separator_main="|"
+tmux_conf_theme_right_separator_sub="|"
+
+# Simplified status line content
+tmux_conf_theme_status_left=" ❐ #S #{prefix_highlight}"
+tmux_conf_theme_status_right=" #{prefix}#{mouse}#{pairing}#{synchronized} | #[fg=green]#(~/.tmux/plugins/tmux-mem-cpu-load/tmux-mem-cpu-load -c -q -v -l 52 -r 33 -a 1) | %R | %d %b | #{username}#{root} | #{hostname} "
+# -- clipboard -----------------------------------------------------------------
+
+# Copy mouse drag selections to OS clipboard (requires xsel or xclip)
+tmux_conf_copy_to_os_clipboard=true
+
+# -- general -------------------------------------------------------------------
+
+# xterm-keys only needed on tmux < 3.3
+%if #{<:#{version},3.3}
+setw -g xterm-keys on
+%endif
+
+# Performance & feel (Oh My Tmux does not override these)
+set -g status-interval 5
+set -g status-justify centre
+set -g display-time 1500
+set -s escape-time 10
+
+# Copy mode highlight (not managed by Oh My Tmux theme pipeline)
+setw -g mode-style "fg=#080808,bg=#00afff"
+
+# -- navigation ----------------------------------------------------------------
+
+# create session
+bind C-c new-session
+
+# find session
+bind C-f command-prompt -p find-session 'switch-client -t %%'
+
+# session navigation
+bind BTab switch-client -l  # move to last session
+
+# split current window horizontally
+bind - split-window -v
+# split current window vertically
+bind _ split-window -h
+# Split window vertically with backslash
+bind \\ split-window -h
+
+# pane navigation
+bind -r h select-pane -L  # move left
+bind -r j select-pane -D  # move down
+bind -r k select-pane -U  # move up
+bind -r l select-pane -R  # move right
+bind > swap-pane -D       # swap current pane with the next one
+bind < swap-pane -U       # swap current pane with the previous one
+
+# maximize current pane
+bind + run "cut -c3- '#{TMUX_CONF}' | sh -s _maximize_pane '#{session_name}' '#D'"
+
+# pane resizing
+bind -r H resize-pane -L 2
+bind -r J resize-pane -D 2
+bind -r K resize-pane -U 2
+bind -r L resize-pane -R 2
+
+# window navigation
+unbind n
+unbind p
+bind -r C-h previous-window # select previous window
+bind -r C-l next-window     # select next window
+bind Tab last-window        # move to last active window
+
+# toggle mouse
+bind m run "cut -c3- '#{TMUX_CONF}' | sh -s _toggle_mouse"
+
+# Increase history size
+set -g history-limit 10000
+
+# Start with mouse mode enabled
+set -g mouse on
+
+# Use OSC 52 to send copied text back to the SSH client's clipboard (works with Termius/Windows over SSH)
+set -g set-clipboard on
+bind -T copy-mode-vi MouseDragEnd1Pane send -X copy-selection-and-cancel
+bind -T copy-mode MouseDragEnd1Pane send -X copy-selection-and-cancel
+
+# Terminal settings
+set -g default-terminal "screen-256color"
+set -sa terminal-overrides ",xterm-256color:RGB"
+# Declare OSC 52 clipboard support so tmux emits it over the SSH connection
+%if #{>=:#{version},3.2}
+set -ag terminal-features ",xterm-256color:clipboard"
+%endif
+set -g focus-events on
+setw -g aggressive-resize on
+
+set -g @resurrect-save 'S'
+set -g @resurrect-restore 'R'
+
+# -- plugins -------------------------------------------------------------------
+
+tmux_conf_update_plugins_on_launch=true
+tmux_conf_update_plugins_on_reload=true
+tmux_conf_uninstall_plugins_on_reload=true
+
+# tmux-sensible: sensible defaults
+set -g @plugin 'tmux-plugins/tmux-sensible'
+# tmux-resurrect: save and restore tmux sessions
+set -g @plugin 'tmux-plugins/tmux-resurrect'
+# tpm: tmux plugin manager
+set -g @plugin 'tmux-plugins/tpm'
+# tmux-mem-cpu-load: display CPU and memory usage
+set -g @plugin 'thewtex/tmux-mem-cpu-load'
+# tmux-mighty-scroll: scroll through tmux history
+set -g @plugin 'noscript/tmux-mighty-scroll'
+# tmux-menus: create menus in tmux. Use prefix + \ to open the menu
+# set -g @plugin 'jaclu/tmux-menus'
+# set -g @menus_trigger 'm'
+# tmux-prefix-highlight: highlight the prefix key
+set -g @plugin 'tmux-plugins/tmux-prefix-highlight'

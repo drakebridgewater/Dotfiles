@@ -1,0 +1,29 @@
+# Validate that a named variable is set and non-empty.
+check_variable() {
+    source_logging
+    var_name=${1}
+    message=${2}
+    print_only=${3:-0}
+
+    # Validate variable name before eval to keep lookup safe and portable.
+    case "${var_name}" in
+        ''|[0-9]*|*[!A-Za-z0-9_]*)
+            error "check_variable got an invalid variable name: ${var_name}"
+            return 1
+            ;;
+    esac
+
+    eval "var_name=\${${var_name}-}"
+
+    if [ -z "${var_name}" ]; then
+        if [ "${print_only}" = "1" ]; then
+            warning "${message}"
+        else
+            error "${message}"
+        fi
+        return 1
+    fi
+
+    unset var_name message print_only var_name
+    return 0
+}

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dotfiles-tools"
+version = "0.1.0"
+description = "Personal command-line tooling shipped with the dotfiles repo"
+requires-python = ">=3.9"
+dependencies = [
+    "pyyaml",
+    "requests",
+    "urllib3",
+    "svgwrite",
+]
+
+[project.optional-dependencies]
+# Heavy and only needed when running the MCP server.
+mcp = ["mcp[cli]"]
+
+[project.scripts]
+generate-work-report = "dotfiles.work_report:main"
+generate-roadmap = "dotfiles.roadmap:main"
+pick-commits = "dotfiles.pick_commits:main"
+compare-tree = "dotfiles.compare_tree:main"
+pushover-send = "dotfiles.pushover.send:main"
+pushover-watch = "dotfiles.pushover.watch:main"
+work-report-mcp = "dotfiles.work_report_mcp:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["lib/python/dotfiles"]

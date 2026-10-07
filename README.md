@@ -1,82 +1,132 @@
 # Dotfiles
 
-Personal dotfiles for macOS, Linux, and Unraid. Source the same shell configuration across all platforms with automatic OS detection.
+Personal shell environment and tooling for macOS, Linux, RHEL/Rocky, Unraid and
+Windows. One repo, one bootstrap command, works on personal and work hosts.
 
-## Supported Platforms
-
-| Platform | Setup Script | Notes |
-| ---------- | ------------- | ------- |
-| macOS | `MacOS/mac_setup.sh` | Homebrew-based package installation |
-| RHEL/Rocky 8 | `rhel8_setup.sh` | dnf-based setup with module streams |
-| Unraid | `Unraid/unraid_setup.sh` | Docker container with full shell environment |
-| Windows | `Windows/powershell/windows_setup.ps1` | PowerShell-based setup |
-
-## Quick Start
-
-### macOS / Linux
+## Quick start
 
 ```bash
 git clone https://github.com/drakebridgewater/Dotfiles.git ~/Dotfiles
-cd ~/Dotfiles
-./setup_dotfile_symlinks ~
+~/Dotfiles/install/bootstrap.sh
 ```
+
+Landing on a locked-down box with no root, no network, or no Python?
+
+```bash
+~/Dotfiles/install/bootstrap.sh --minimal   # symlinks only
+```
+
+Then `DOTFILES_MINIMAL=1 zsh` gives a plain environment — PATH, helper
+functions and a simple prompt, with no oh-my-zsh, zinit, p10k or network access.
+`.zshrc` also falls back to it automatically when `~/.oh-my-zsh` is missing.
+
+## Layout
+
+The repo is organised by **how a file reaches the machine**, not by language.
+
+```text
+home/       Symlinked verbatim into $HOME (.zshrc, .bashrc, .profile, .vimrc, ...)
+config/     Each entry symlinked into ~/.config (nvim/)
+shell/      Sourced by interactive shells
+  loader.sh   Shared loader for shell/common (used by every rc file)
+  minimal.sh  Stripped-down environment for bare machines
+  common/     Helper functions loaded in every shell
+  zsh/        zsh-only: completions, extras
+  work/       Siemens EDA helpers, loaded only on /usr/mgc or /wv hosts
+bin/        On $PATH
+  work/       On $PATH only on Siemens hosts
+  windows/    PowerShell utilities
+lib/python/dotfiles/   Importable Python package behind the CLI tools
+install/    Bootstrap: bootstrap.sh, symlinks.sh, per-platform scripts
+etc/        Example configs (config.example.yaml, env.example)
+docs/       Notes
+```
+
+## Three tiers
+
+| Tier | Runs | Language |
+| --- | --- | --- |
+| **bootstrap** | once per host, often as root | native `sh` / `ps1` |
+| **runtime** | every interactive shell | sourced shell |
+| **tools** | on demand | Python package |
+
+Bootstrap stays POSIX `sh` on purpose: the platform scripts are what *install*
+Python, so they cannot be written in it. Runtime stays sourced shell because the
+helpers define functions in your live shell and every terminal pays their
+startup cost.
+
+## Platforms
+
+| Platform | Script | Notes |
+| --- | --- | --- |
+| macOS | `install/macos.sh` | Homebrew |
+| RHEL/Rocky 8 | `install/linux-rhel8.sh` | dnf module streams |
+| Unraid | `install/unraid/unraid_setup.sh` | Docker container |
+| Windows | `install/windows.ps1` | PowerShell |
+
+`install/bootstrap.sh` detects the platform and dispatches automatically.
 
 ### Unraid
 
-Unraid's root filesystem is in RAM and wiped on every reboot. Instead of installing packages on the host, a Docker container provides the full shell environment with zsh, oh-my-zsh, tmux, vim, and all dotfiles.
+Unraid's root filesystem is in RAM and wiped on every reboot, so instead of
+installing host packages a Docker container provides the full environment.
 
 ```bash
-# 1. Clone to persistent storage
 git clone https://github.com/drakebridgewater/Dotfiles.git /boot/config/Dotfiles
-
-# 2. Run setup (builds container, registers boot script)
-bash /boot/config/Dotfiles/Unraid/unraid_setup.sh
-
-# 3. Attach to the shell
+bash /boot/config/Dotfiles/install/unraid/unraid_setup.sh
 docker exec -it dotfiles-shell zsh
 ```
 
-The setup script registers a boot hook in `/boot/config/go` that auto-starts the container on every reboot. The container mounts your Dotfiles (read-only), SSH keys, Docker socket, and `/mnt/user` shares.
+Setup registers a boot hook in `/boot/config/go` that starts the container each
+reboot. The container mounts the repo read-only, plus SSH keys, the Docker
+socket and `/mnt/user`.
 
-## Structure
+## Python tools
 
-```text
-.zshrc              # Main zsh config (sources .profile and .aliases)
-.zshrc.legacy       # Fallback for zsh < 5.1 (RHEL 7)
-.bashrc             # Bash config
-.profile            # Shared environment: PATH, exports (sourced by zsh and bash)
-.aliases            # Shared aliases with OS-specific sections
-.vimrc              # Vim configuration
-.tmux.conf          # Tmux configuration (oh-my-tmux)
-.tmux.conf.local    # Local tmux overrides
-.p10k.zsh           # Powerlevel10k prompt theme
-extra.zsh           # Optional extras (long-running command notifications)
-setup_dotfile_symlinks  # Creates symlinks from repo into $HOME
+Installed as a real package with console entry points, so there are no
+hand-written wrapper scripts:
+
+| Command | Module |
+| --- | --- |
+| `generate-work-report` | `dotfiles.work_report` |
+| `generate-roadmap` | `dotfiles.roadmap` |
+| `pick-commits` | `dotfiles.pick_commits` |
+| `compare-tree` | `dotfiles.compare_tree` |
+| `pushover-send` / `pushover-watch` | `dotfiles.pushover` |
+| `work-report-mcp` | `dotfiles.work_report_mcp` (needs `[mcp]` extra) |
+
+`bootstrap.sh` installs them with `uv`, falling back to `pipx`, then
+`pip install --user -e`. To do it by hand:
+
+```bash
+uv tool install --editable ~/Dotfiles
+# or
+pipx install --editable ~/Dotfiles
 ```
 
-### Platform-Specific Directories
+## Configuration
 
-```text
-MacOS/              # macOS Homebrew setup
-Unraid/             # Unraid Docker container setup + boot scripts
-Windows/            # Windows/PowerShell setup
-bin/                # Personal scripts added to PATH
-pushover/           # Pushover notification scripts
-```
+Secrets live outside the repo. `bootstrap.sh` seeds
+`~/.config/dotfiles/config.yaml` from `etc/config.example.yaml` with mode `600`.
+Fill in your GitLab / Jira / Confluence tokens there. The repo ignores
+`config.yaml` so a filled-in copy can never be committed by accident.
 
-## How It Works
+## How it works
 
-- `setup_dotfile_symlinks <home_dir>` symlinks all dotfiles (files starting with `.`) from this repo into the given home directory
-- `.profile` builds `$PATH` dynamically — only directories that exist are added
-- `.aliases` detects macOS vs Linux vs Unraid and adjusts commands accordingly
-- `.zshrc` detects old zsh versions and falls back to `.zshrc.legacy`
-- Siemens EDA configuration is only loaded when on Siemens hosts (checks for `/usr/mgc` or `/wv`)
-
-### Unraid-Specific Behavior
-
-- Uses a Docker container (`dotfiles-shell`) for the full shell environment
-- `/boot/config/go` calls `Unraid/unraid_boot.sh` to start the container on boot
-- Dotfiles are mounted read-only from `/boot/config/Dotfiles/` into the container
-- Container has `host` networking, Docker socket access, and `/mnt/user` shares mounted
-- SSH keys from the Unraid host are mounted read-only
-- Set `UNRAID=true` environment variable is available for Unraid-specific logic
+- `install/symlinks.sh` links everything in `home/` into `$HOME` and everything
+  in `config/` into `~/.config`, backing up any existing file to `.bak` first.
+  Run it alone to enable Neovim: `~/Dotfiles/install/symlinks.sh`.
+- Neovim config is `config/nvim` (lazy.nvim; plugins in `lua/plugins/`). The
+  `lazy-lock.json` generated on first run is committed so plugin versions match
+  across machines.
+- `home/.profile` builds `$PATH` dynamically — only directories that exist are
+  added — and exports `DOTFILES_DIR` for everything else to key off.
+- `shell/loader.sh` sources `shell/common/*`, loading `logging` first (other
+  helpers depend on it) and isolating failures so one broken file cannot abort
+  your rc.
+- `home/.zshrc` falls back to `home/.zshrc.legacy` on zsh < 5.1 (RHEL 7), and to
+  `shell/minimal.sh` when there is no framework installed.
+- Siemens EDA config, `shell/work/` and `bin/work/` load only on hosts with
+  `/usr/mgc` or `/wv`.
+- A non-writable or foreign-owned `$HOME` (UID-mismatched containers) reroutes
+  caches and history to a temp dir instead of failing.

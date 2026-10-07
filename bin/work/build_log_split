@@ -1,0 +1,72 @@
+#!/bin/bash
+
+function split_log_file() {
+  # The string that will trigger a new file split.
+  # The line containing this string will be the first line of the new file.
+  SPLIT_STRING=${2:-"Entering directory"}
+
+  # Check if an input file was provided
+  if [ -z "$1" ]; then
+      echo "Oops! It looks like you forgot to provide the input file."
+      echo "Usage: $0 <input_file> [output_prefix]"
+      echo ""
+      echo "Example: $0 my_huge_log.txt processed_chunk"
+      echo "         This will create files like processed_chunk_001.txt, processed_chunk_002.txt, etc."
+      exit 1
+  fi
+
+  INPUT_FILE="$1"
+  # Set the output file prefix. Defaults to 'output' if not specified by the user.
+  OUTPUT_PREFIX="${3:-output}"
+
+  echo "Starting file splitting process..."
+  echo "------------------------------------"
+  echo "Input File: '$INPUT_FILE'"
+  echo "Split Trigger: '$SPLIT_STRING'"
+  echo "Output files will start with: '${OUTPUT_PREFIX}_XXX.txt'"
+  echo "------------------------------------"
+
+  # Use awk to perform the splitting
+  awk -v prefix="$OUTPUT_PREFIX" -v split_str="$SPLIT_STRING" '
+  BEGIN {
+      file_num = 0;      # Counter for output files
+      current_file = ""; # Stores the name of the current output file
+  }
+
+  # This block executes when the split string is found in a line
+  $0 ~ split_str {
+      # If a file was already open, close it before starting a new one.
+      # This prevents too many open file handles for very large splits.
+      if (current_file != "") {
+          close(current_file);
+      }
+      file_num++; # Increment the file counter
+      # Create the new filename with leading zeros (e.g., output_001.txt)
+      current_file = sprintf("%s_%03d.txt", prefix, file_num);
+  }
+
+  # This block executes for every line
+  {
+      # Handle the initial block of lines before the first split_str is encountered.
+      # These lines should go into the first output file.
+      if (file_num == 0) {
+          file_num = 1;
+          current_file = sprintf("%s_%03d.txt", prefix, file_num);
+      }
+      # Print the current line to the currently active output file
+      print > current_file;
+  }
+
+  # This block executes after all lines have been processed
+  END {
+      # Ensure the very last file is closed properly.
+      if (current_file != "") {
+          close(current_file);
+      }
+      print "File splitting complete! Check your directory for files starting with '" prefix "_'."
+  }' "$INPUT_FILE"
+
+  echo "All done!"
+}
+
+split_log_file "$@"

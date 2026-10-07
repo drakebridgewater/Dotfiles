@@ -1,0 +1,38 @@
+#!/usr/mgc/peteoss/bin/python3
+
+import argparse
+import http.client, urllib
+import sys
+import subprocess
+import os
+
+parser = argparse.ArgumentParser(description="Read STDIN. Once it's closed send a Pushover notification to the current user with the last line.")
+parser.add_argument("-m", "--message", help="Message text to send to Pushover")
+parser.add_argument("-s", "--sound", help="Pushover sound to send", default="tugboat")
+def main():
+    args = parser.parse_args()
+
+    if "LOGNAME" in os.environ:
+        username = os.environ["LOGNAME"]
+    elif "USER" in os.environ:
+        username = os.environ["USER"]
+    else:
+        raise Exception("Unable to determine your username!")
+
+    last_line = ""
+    for line in sys.stdin:
+        line = line.rstrip()
+        print(line)
+        last_line = line
+
+    # Time to send the notification
+    if args.message:
+        msgbody = args.message
+    else:
+        msgbody = last_line
+
+    return subprocess.call(["pushover-send", "-u", username, "-m", msgbody, "-s", args.sound])
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

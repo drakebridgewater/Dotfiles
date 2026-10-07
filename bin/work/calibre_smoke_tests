@@ -1,0 +1,77 @@
+# 1. Setup environment
+#!/bin/bash
+CAL_VERSION=${CAL_VERSION:-2020.3}
+export MGC_HOME=/home/icdet/work_areas/qamicros/${CAL_VERSION}/lv_micro.aok
+export LD_LIBRARY_PATH=${MGC_HOME}/pkgs/icv_lib/lib64:${MGC_HOME}/pkgs/calibre_base/lib64 
+LOG_FILE="$PWD/calibre_execution_$(date +%Y%m%d)_${CAL_VERSION}.log"
+: > "$LOG_FILE"
+
+# Check if DISPLAY is set
+if [ -z "$DISPLAY" ]; then
+    echo "DISPLAY is not set."
+    exit 1
+fi
+
+# 2. Define commands
+cmds=(
+    "$MGC_HOME/bin/xactview"
+    "$MGC_HOME/bin/calibrewb"
+    "$MGC_HOME/bin/calibre -visionai"
+    "$MGC_HOME/bin/calibre -gui -mpower"
+    "$MGC_HOME/bin/calibre -gui -xact"
+    "$MGC_HOME/bin/calibre -gui -3dstack"
+    "$MGC_HOME/bin/calibre -gui -perc"
+    "$MGC_HOME/bin/calibre -gui -pex"
+    "$MGC_HOME/bin/calibre -gui -lvs"
+    "$MGC_HOME/bin/calibre -gui -dfm"
+    "$MGC_HOME/bin/calibre -gui -drc"
+    "$MGC_HOME/bin/calibre -gui"
+)
+  
+SUMMARY=() # In Zsh, you don't need 'declare -a'
+
+# 3. Execute loop
+for cmd in "${cmds[@]}"; do
+    echo "=== Executing: $cmd ===" | tee -a "$LOG_FILE"
+    
+    # Run command
+    timeout 15s bash -c "$cmd" 2>&1 | tee -a "$LOG_FILE"
+    
+    # Force STATUS to be a pure integer from the pipe result
+    (( STATUS = $pipestatus[1] ))
+	
+    # Use quotes around the variable in the case statement
+    case "$STATUS" in
+        0)
+            DESC="SUCCESS" 
+            ;;
+        124)
+            DESC="SUCCESS"
+            # Killed by timeout 
+            ;;
+        127)
+            DESC="COMMAND NOT FOUND" 
+            ;;
+        *)
+            DESC="FAILED (General Error)" 
+            ;;
+    esac
+
+    RESULT_LINE="Status: $STATUS | Result: $DESC | Command: $cmd"
+    echo -e "$RESULT_LINE\n" | tee -a "$LOG_FILE"
+    
+    SUMMARY+=("| $cmd | $STATUS | $DESC |")
+done
+
+# 4. Final version check
+"$MGC_HOME/bin/calibre" -version 2>&1 | tee -a "$LOG_FILE"
+
+# 5. Print Summary Table
+{
+    echo -e "\n### Execution Summary\n"
+    echo "| Command | Exit Code | Description |"
+    echo "| :--- | :---: | :--- |"
+    for line in "${SUMMARY[@]}"; do
+        echo "$line"
+    done
+} | tee -a "$LOG_FILE"
