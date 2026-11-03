@@ -444,6 +444,11 @@ function mk_calibre() {
 }
 
 function mk_calibre_with_systest() {
+    # Verify DISPLAY is set for systests
+    if [ -z "${DISPLAY}" ]; then
+        echo "Error: DISPLAY environment variable is not set."
+        return 1
+    fi
     _mk_build_start mk_calibre_with_systest "$@" || return 1
 
     echo "Building cxx_warn_flags, lcl_libs, and lcl_exec..."
@@ -462,4 +467,26 @@ function mk_all() {
     mk_ic_hdr || return 1
     mk_euv || return 1
     mk_lcl_libs || return 1
+}
+
+function add_calibre_release_alias() {
+    # Dynamic Calibre Alias Generator
+    for dir in /wv/icdet/work_areas/calibre_*; do
+        # Every entry is a symlink into a separate automount; [ -d ] follows it and
+        # cost ~1s cold across ~120 entries, while -L only lstats the entry itself.
+        if [ -L "$dir" ] || [ -d "$dir" ]; then
+            # Pure parameter expansion: spawning basename/sed/cut per dir on NFS cost ~2.8s
+            ver_raw=${dir##*/calibre_}     # calibre_2016_1 -> 2016_1
+            year_full=${ver_raw%%_*}
+            qtr=${ver_raw#*_}
+
+            # 2008 -> 8, 2016 -> 16
+            year_short=${year_full#20}
+            year_short=${year_short#0}
+            
+            # Define the alias
+            # Note: We escape ${VCO} so it is evaluated when the alias is CALLED, not defined.
+            alias "${year_short}.${qtr}_cal"="export MGC_HOME=$dir/ic/ic_superproj/\${VCO}/Mgc_home"
+        fi
+    done
 }

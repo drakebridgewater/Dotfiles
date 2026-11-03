@@ -8,27 +8,7 @@ alias d_monday="export MGC_HOME=/wv/icdet/work_areas/d_monday/ic/ic_superproj/${
 alias d_tuesday="export MGC_HOME=/wv/icdet/work_areas/d_tuesday/ic/ic_superproj/${VCO}/Mgc_home"
 alias d_wednesday="export MGC_HOME=/wv/icdet/work_areas/d_wednesday/ic/ic_superproj/${VCO}/Mgc_home"
 alias d_thursday="export MGC_HOME=/wv/icdet/work_areas/d_thursday/ic/ic_superproj/${VCO}/Mgc_home"
-    alias d_friday="export MGC_HOME=/wv/icdet/work_areas/d_friday/ic/ic_superproj/${VCO}/Mgc_home"
-
-
-
-# Dynamic Calibre Alias Generator
-for dir in /wv/icdet/work_areas/calibre_*; do
-    if [ -d "$dir" ]; then
-        # Pure parameter expansion: spawning basename/sed/cut per dir on NFS cost ~2.8s
-        ver_raw=${dir##*/calibre_}     # calibre_2016_1 -> 2016_1
-        year_full=${ver_raw%%_*}
-        qtr=${ver_raw#*_}
-
-        # 2008 -> 8, 2016 -> 16
-        year_short=${year_full#20}
-        year_short=${year_short#0}
-        
-        # Define the alias
-        # Note: We escape ${VCO} so it is evaluated when the alias is CALLED, not defined.
-        alias "${year_short}.${qtr}_cal"="export MGC_HOME=$dir/ic/ic_superproj/\${VCO}/Mgc_home"
-    fi
-done
+alias d_friday="export MGC_HOME=/wv/icdet/work_areas/d_friday/ic/ic_superproj/${VCO}/Mgc_home"
 
 alias build_aoj='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -build aoj'
 alias build_rh7='/wv/pevtools/bin/calgridsub -hrt 24:00:00 -i -l "os=redhat7*"'
