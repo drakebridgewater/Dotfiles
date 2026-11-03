@@ -1,0 +1,54 @@
+# Warn when the hostname claims a RHEL major version (…-rh8, …-r10) that the
+# host's OS doesn't match. Sourced by bash and zsh via shell/loader.sh, so
+# stick to POSIX constructs. Silent when the hostname has no such suffix.
+#
+#   foobar-abc-rh10 on Rocky 8.10  -> warning
+#   barfoo-def-rh10 on Alma 10.0   -> nothing
+#
+# Skip with DOTFILES_SKIP_HOST_OS_CHECK=1.
+
+check_host_os_version() {
+    local host expected osr id id_like version_id actual
+
+    host=$(hostname -s 2>/dev/null) || host=$HOSTNAME
+    host=${host%%.*}
+
+    # Require a separator so names like "tower8" don't look like "r8".
+    case "$host" in
+        *[-_]rh[0-9]* | *[-_]r[0-9]*) ;;
+        *) return 0 ;;
+    esac
+    expected=${host##*[-_]}
+    expected=${expected#rh}
+    expected=${expected#r}
+    case "$expected" in
+        '' | *[!0-9]*) return 0 ;;
+    esac
+
+    osr=${DOTFILES_OS_RELEASE:-/etc/os-release}
+    [ -r "$osr" ] || return 0
+    id=$(. "$osr" >/dev/null 2>&1; printf '%s' "${ID:-}")
+    id_like=$(. "$osr" >/dev/null 2>&1; printf '%s' "${ID_LIKE:-}")
+    version_id=$(. "$osr" >/dev/null 2>&1; printf '%s' "${VERSION_ID:-}")
+    actual=${version_id%%.*}
+
+    case " $id $id_like " in
+        *" rhel "* | *" rocky "* | *" almalinux "* | *" centos "* | *" ol "*) ;;
+        *)
+            printf '\033[0;33mWARNING: hostname %s implies RHEL-compatible %s, but this host is %s %s\033[0m\n' \
+                "$host" "$expected" "${id:-unknown}" "${version_id:-?}" >&2
+            return 1
+            ;;
+    esac
+
+    if [ "$actual" != "$expected" ]; then
+        printf '\033[0;33mWARNING: hostname %s implies RHEL-compatible %s, but this host is %s %s\033[0m\n' \
+            "$host" "$expected" "$id" "$version_id" >&2
+        return 1
+    fi
+    return 0
+}
+
+case $- in
+    *i*) [ -n "${DOTFILES_SKIP_HOST_OS_CHECK:-}" ] || check_host_os_version ;;
+esac
