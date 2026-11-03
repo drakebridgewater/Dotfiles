@@ -69,7 +69,7 @@ if [ "$SKIP_PACKAGES" -eq 0 ]; then
         say "Running platform setup: $script"
         case "$script" in
             *.ps1) powershell -ExecutionPolicy Bypass -File "$script" ;;
-            *)     sh "$script" ;;
+            *)     bash "$script" ;;
         esac
     else
         say "No platform setup script for '$PLATFORM', skipping package install."
