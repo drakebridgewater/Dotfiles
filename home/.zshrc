@@ -4,8 +4,17 @@ case $- in
       *) return;;
 esac
 
-if [[ "$TERM_PROGRAM" == "vscode" ]] && command -v code >/dev/null 2>&1; then
-  . "$(code --locate-shell-integration-path zsh)" 2>/dev/null
+# `code --locate-shell-integration-path` takes ~0.8s, so cache the path it
+# returns and only ask again once the cached file disappears (e.g. VS Code update).
+if [[ "$TERM_PROGRAM" == "vscode" ]]; then
+  _vsc_cache="${XDG_CACHE_HOME:-$HOME/.cache}/vscode-zsh-integration-path"
+  _vsc_path=$(<"$_vsc_cache") 2>/dev/null
+  if [[ ! -r "$_vsc_path" ]] && command -v code >/dev/null 2>&1; then
+    _vsc_path="$(code --locate-shell-integration-path zsh 2>/dev/null)"
+    [[ -r "$_vsc_path" ]] && print -r -- "$_vsc_path" >| "$_vsc_cache" 2>/dev/null
+  fi
+  [[ -r "$_vsc_path" ]] && . "$_vsc_path"
+  unset _vsc_cache _vsc_path
 fi
 
 # Bare-machine fallback: no framework, no network, just PATH/functions/prompt.
@@ -252,12 +261,12 @@ _dotfiles_load_bashrcd
 #===========================================================================
 if [[ -d /usr/mgc || -d /wv ]]; then
   # emulate sh -c 'source /wv/iclvqa2/qa/bin/.aliases' || echo "Failed to source /wv/iclvqa2/qa/bin/.aliases"
-  [[ -f /wv/calgrid/sge/default/common/settings.sh ]] && \
+  # .profile already sources calgrid.sh (SGE), env_init.sh and sets VCO; these
+  # are fallbacks only, since repeating them cost ~0.25s of NFS execs per start.
+  [[ -z "$SGE_ROOT" && -f /wv/calgrid/sge/default/common/settings.sh ]] && \
     { emulate sh -c 'source /wv/calgrid/sge/default/common/settings.sh' || echo "Failed to source /wv/calgrid/sge/default/common/settings.sh"; }
-  [[ -f /user/pete/bin/env_init.sh ]] && \
-    { emulate sh -c 'source /user/pete/bin/env_init.sh' || echo "Failed to source /user/pete/bin/env_init.sh"; }
 
-  [[ -x /usr/mgc/bin/mgcvco ]] && export VCO=$(/usr/mgc/bin/mgcvco)
+  [[ -z "$VCO" && -x /usr/mgc/bin/mgcvco ]] && export VCO=$(/usr/mgc/bin/mgcvco)
   [[ -d /wv/mgc/mgc_server ]] && export MGC_SERVER='/wv/mgc/mgc_server'
   [[ -d /wv/cal_wg_server ]] && export WG_SERVER='/wv/cal_wg_server'
 
