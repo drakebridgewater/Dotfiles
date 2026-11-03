@@ -9,6 +9,23 @@
 # Exit on any error
 set -e
 
+# Privilege detection: root-only steps are skipped when neither root nor passwordless sudo is available.
+SUDO=""
+HAVE_ROOT=0
+if [ "$(id -u)" -eq 0 ]; then
+    HAVE_ROOT=1
+elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+    SUDO="sudo"
+    HAVE_ROOT=1
+fi
+
+as_root() {
+    if [ -n "$SUDO" ]; then sudo "$@"; else "$@"; fi
+}
+
+# Shadows the binary so every dnf call below picks up sudo when needed.
+dnf() { as_root dnf "$@"; }
+
 # Display a message with a border
 echo_msg() {
     local msg="$1"
@@ -26,6 +43,8 @@ enable_module() {
     echo "Enabling module $module:$stream..."
     dnf module enable -y "$module:$stream"
 }
+
+if [ "$HAVE_ROOT" -eq 1 ]; then
 
 # Update system first
 echo_msg "Updating system packages..."
@@ -153,6 +172,7 @@ dnf install -y \
     python39 \
     python3-pip \
     python3-devel \
+    npm \
     perl \
     php \
     php-fpm \
@@ -169,34 +189,59 @@ dnf install -y \
     buildah \
     skopeo
 
+else
+    echo_msg "No root/sudo access: skipping repositories, module streams and system packages."
+fi
+
 # =====================================================================
 # Neovim Installation
 # =====================================================================
 echo_msg "Installing Neovim and dependencies..."
-cd ~/Downloads  # or any directory where you have permissions
 
-# Clone the repository
-git clone https://github.com/neovim/neovim
+nvim_missing=""
+for tool in git make cmake gcc; do
+    command -v "$tool" >/dev/null 2>&1 || nvim_missing="$nvim_missing $tool"
+done
 
-# Change to the cloned directory
-cd neovim
-
-# Build in a way that installs to your home directory
-make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=$HOME/neovim
-make install
-dnf install -y nodejs npm
+if [ -x "$HOME/neovim/bin/nvim" ]; then
+    echo "Neovim already installed in $HOME/neovim."
+elif [ -n "$nvim_missing" ]; then
+    echo "Skipping Neovim build; missing tools:$nvim_missing"
+else
+    # Subshell keeps the caller's working directory intact; installs to $HOME/neovim, no root needed.
+    (
+        mkdir -p ~/Downloads
+        cd ~/Downloads
+        [ -d neovim ] || git clone https://github.com/neovim/neovim
+        cd neovim
+        make CMAKE_BUILD_TYPE=RelWithDebInfo CMAKE_INSTALL_PREFIX=$HOME/neovim
+        make install
+    )
+fi
 
 # Setup Python virtual environment for Neovim
-NEOVIM_VIRT_ENV_DIR="$HOME/.neovim_env"
-mkdir -p ${NEOVIM_VIRT_ENV_DIR}
-python3 -m venv ${NEOVIM_VIRT_ENV_DIR}/nvim-venv
-source ${NEOVIM_VIRT_ENV_DIR}/nvim-venv/bin/activate
-pip install --upgrade pip
-pip install pynvim
-deactivate
+if command -v python3 >/dev/null 2>&1; then
+    NEOVIM_VIRT_ENV_DIR="$HOME/.neovim_env"
+    mkdir -p ${NEOVIM_VIRT_ENV_DIR}
+    python3 -m venv ${NEOVIM_VIRT_ENV_DIR}/nvim-venv
+    source ${NEOVIM_VIRT_ENV_DIR}/nvim-venv/bin/activate
+    pip install --upgrade pip
+    pip install pynvim
+    deactivate
+else
+    echo "python3 not found; skipping pynvim setup."
+fi
 
-# Install Node.js provider for Neovim
-npm install -g neovim
+# Install Node.js provider for Neovim (user prefix when not root; needs ~/.local/bin on PATH)
+if command -v npm >/dev/null 2>&1; then
+    if [ "$HAVE_ROOT" -eq 1 ]; then
+        as_root npm install -g neovim
+    else
+        npm install -g --prefix "$HOME/.local" neovim
+    fi
+else
+    echo "npm not found; skipping Node.js provider for Neovim."
+fi
 
 # Neovim config is symlinked from config/nvim by install/symlinks.sh;
 # init.lua picks up the venv above automatically.
@@ -206,21 +251,27 @@ npm install -g neovim
 # =====================================================================
 echo_msg "Configuring and starting essential services..."
 
-# Enable and start SSH
-systemctl enable sshd
-systemctl start sshd
+if [ "$HAVE_ROOT" -eq 1 ]; then
+    # Enable and start SSH
+    as_root systemctl enable sshd
+    as_root systemctl start sshd
 
-# Open SSH port in firewall
-firewall-cmd --permanent --add-service=ssh
-firewall-cmd --reload
+    # Open SSH port in firewall
+    as_root firewall-cmd --permanent --add-service=ssh
+    as_root firewall-cmd --reload
+else
+    echo "No root/sudo access: skipping sshd and firewall configuration."
+fi
 
 # =====================================================================
 # Oh-My-Zsh Setup
 # =====================================================================
 echo_msg "Setting up Oh-My-Zsh..."
 
-# Install Oh-My-Zsh
-if [ ! -d "$HOME/.oh-my-zsh" ]; then
+# Install Oh-My-Zsh (its installer refuses to run without zsh)
+if ! command -v zsh >/dev/null 2>&1; then
+    echo "zsh not found; skipping Oh-My-Zsh setup."
+elif [ ! -d "$HOME/.oh-my-zsh" ]; then
     echo "Installing Oh-My-Zsh..."
     sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
 else
@@ -228,21 +279,24 @@ else
 fi
 
 # Install Powerlevel10k theme
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
+if [ -d "$HOME/.oh-my-zsh" ] && [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k" ]; then
     git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
 fi
 
 # Install useful plugins
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
+if [ -d "$HOME/.oh-my-zsh" ] && [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions" ]; then
     git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions
 fi
 
-if [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
+if [ -d "$HOME/.oh-my-zsh" ] && [ ! -d "${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting" ]; then
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting
 fi
 
-# Set Zsh as default shell
-chsh -s $(which zsh) $(whoami)
+# Set Zsh as default shell (chsh needs a password or root; a failure here is non-fatal)
+if command -v zsh >/dev/null 2>&1; then
+    chsh -s "$(command -v zsh)" "$(whoami)" \
+        || echo "Could not change default shell; add 'exec zsh -l' to ~/.bash_profile instead."
+fi
 
 # =====================================================================
 # Oh-My-Tmux Setup
@@ -250,6 +304,9 @@ chsh -s $(which zsh) $(whoami)
 echo_msg "Setting up Oh-My-Tmux..."
 
 # Install Oh-My-Tmux (Tmux Plugin Manager)
+if ! command -v tmux >/dev/null 2>&1; then
+    echo "tmux not found; skipping Oh-My-Tmux setup."
+else
 if [ ! -d "$HOME/.tmux/plugins/tpm" ]; then
     mkdir -p $HOME/.tmux/plugins
     git clone https://github.com/tmux-plugins/tpm $HOME/.tmux/plugins/tpm
@@ -262,12 +319,15 @@ if [ ! -d "$HOME/.tmux" ]; then
 fi
 # Install tmux plugins automatically
 $HOME/.tmux/plugins/tpm/bin/install_plugins
+fi
 
 # =====================================================================
 # Cleanup
 # =====================================================================
-echo_msg "Cleaning up..."
-dnf clean all
+if [ "$HAVE_ROOT" -eq 1 ]; then
+    echo_msg "Cleaning up..."
+    dnf clean all
+fi
 
 echo_msg "Installation complete! Your Rocky Linux 8 system is now set up with Oh-My-Zsh and Oh-My-Tmux."
 echo "Please log out and log back in for Zsh changes to take effect."
