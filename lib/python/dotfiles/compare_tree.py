@@ -17,6 +17,7 @@ from typing import Dict, Optional, Set, Tuple
 from dotfiles.compare_report import (
     DEFAULT_WORKERS,
     Entry,
+    Node,
     STATUS_LABELS,
     build_tree,
     inspect_files,
@@ -69,6 +70,24 @@ def compare_directories(
     Compare two directory trees, print the differences and optionally write an
     HTML report to html_path. Returns True when the trees are identical.
     """
+    tree = print_comparison(dir1, dir2, jobs)
+    if html_path:
+        write_html(html_path, render_html(dir1, dir2, tree, "Directory comparison"))
+    return is_identical(tree)
+
+
+def is_identical(tree: Node) -> bool:
+    return all(n.status == "same" for n in tree.children.values())
+
+
+def write_html(html_path: str, content: str) -> None:
+    out = Path(html_path)
+    out.write_text(content, encoding="utf-8")
+    print(f"\n{Colors.BOLD}HTML report:{Colors.RESET} {out.resolve()}")
+
+
+def print_comparison(dir1: str, dir2: str, jobs: int = DEFAULT_WORKERS) -> Node:
+    """Compare two trees, print the differences and return the merged tree."""
     print(f"\n{Colors.BOLD}Comparing Directory Trees{Colors.RESET}")
     print(f"Directory 1: {Colors.BLUE}{dir1}{Colors.RESET}")
     print(f"Directory 2: {Colors.BLUE}{dir2}{Colors.RESET}")
@@ -146,17 +165,11 @@ def compare_directories(
         for item in items:
             print(f"  {Colors.YELLOW}~ {item}{Colors.RESET}")
 
-    identical = tree.children == {} or all(n.status == "same" for n in tree.children.values())
-    if identical:
+    if is_identical(tree):
         print(f"\n{Colors.GREEN}{Colors.BOLD}✨ Directories are identical!{Colors.RESET}")
 
-    if html_path:
-        out = Path(html_path)
-        out.write_text(render_html(dir1, dir2, tree, "Directory comparison"), encoding="utf-8")
-        print(f"\n{Colors.BOLD}HTML report:{Colors.RESET} {out.resolve()}")
-
     print("\n" + "=" * 70)
-    return identical
+    return tree
 
 def add_html_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(

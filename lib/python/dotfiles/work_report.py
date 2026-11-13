@@ -42,8 +42,7 @@ except ImportError:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 DEFAULT_CONFIG_PATH = Path(
-    os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
-) / "dotfiles" / "config.yaml"
+    os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config") ) / "dotfiles" / "config.yaml"
 DEFAULT_OUTPUT_DIR = Path("/tmp/work-report")
 COPILOT_PROMPT = (
     "Do not embellish on what's changed in the last week in this repository. "

@@ -4,19 +4,6 @@ case $- in
       *) return;;
 esac
 
-# `code --locate-shell-integration-path` takes ~0.8s, so cache the path it
-# returns and only ask again once the cached file disappears (e.g. VS Code update).
-if [[ "$TERM_PROGRAM" == "vscode" ]]; then
-  _vsc_cache="${XDG_CACHE_HOME:-$HOME/.cache}/vscode-zsh-integration-path"
-  _vsc_path=$(<"$_vsc_cache") 2>/dev/null
-  if [[ ! -r "$_vsc_path" ]] && command -v code >/dev/null 2>&1; then
-    _vsc_path="$(code --locate-shell-integration-path zsh 2>/dev/null)"
-    [[ -r "$_vsc_path" ]] && print -r -- "$_vsc_path" >| "$_vsc_cache" 2>/dev/null
-  fi
-  [[ -r "$_vsc_path" ]] && . "$_vsc_path"
-  unset _vsc_cache _vsc_path
-fi
-
 # Bare-machine fallback: no framework, no network, just PATH/functions/prompt.
 if [[ -n "$DOTFILES_MINIMAL" || ! -d "$HOME/.oh-my-zsh" ]]; then
   source "${DOTFILES_DIR:-$HOME/Dotfiles}/shell/minimal.sh"

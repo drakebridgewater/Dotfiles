@@ -8,16 +8,11 @@ source "${_dot_work_dir}/symtools.sh"
 source "${_dot_work_dir}/building_calibre.sh"
 unset _dot_work_dir
 
-
-
 function tags_for() {
   local project=${1}
   local tag=${2}
   /usr/mgc/bin/cm_tag list ${tag} ${project} -mgc_server
 }
-
-
-
 
 function setup_pypi_scanner() {
   local _CURRENT_DIR

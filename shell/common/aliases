@@ -89,7 +89,7 @@ if [[ $(hostname -f) =~ 'mentorg' ]]; then
   alias renew_working='find /wv/src_renewal/ -maxdepth 2 -name CURRENT'
 
   alias sglu='. /user/icdet/bin/sglu.ksh'
-  local fqdn=`hostname -f`
+  fqdn=`hostname -f`
   alias d1='export DISPLAY=${fqdn}:1'
   alias d2='export DISPLAY=${fqdn}:2'
   alias d3='export DISPLAY=${fqdn}:3'

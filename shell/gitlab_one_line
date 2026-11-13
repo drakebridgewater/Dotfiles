@@ -1,0 +1,236 @@
+#!/bin/bash
+# gl-sed.sh — "sed -i" for a file in a GitLab repo, without cloning or checking out.
+# Fetches the file(s) via the API, runs your sed script locally, commits the result
+# to a branch (created from a source branch if it doesn't exist yet).
+# Needs: curl, jq, sed, diff, and a GitLab token in $GITLAB_TOKEN (scope: api).
+# Talks to the REST API directly; the glab CLI is not required.
+# Works on macOS (BSD sed) and Linux (GNU sed).
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: gl-sed.sh -p PROJECT [options] [-e SCRIPT]... [SCRIPT] FILE...
+
+Like `sed -i`, but the files live in GitLab. Options may appear anywhere (use `--` before
+a file name that starts with a dash).
+If no -e is given, the first non-option argument is the sed script.
+
+  -p PROJECT   Project path ("group/sub/project") or numeric ID   (required)
+  -b BRANCH    Branch to commit to (default: sed-edit-<timestamp>)
+  -s SOURCE    Branch to create BRANCH from if it doesn't exist (default: project default branch)
+  -m MESSAGE   Commit message (default: "sed: <script> (<files>)")
+  -e SCRIPT    sed script/expression; repeatable, same as sed -e
+  -E           Extended regex (passed to sed -E)
+  -d           Dry run: print the diff, commit nothing
+  -v           Verbose: log timing breakdown (dns/connect/tls/first byte/total) per request
+  -t SECONDS   Max time per HTTP request (default: 120; 0 = none)
+  -h           Help
+
+Examples:
+  gl-sed.sh -p grp/proj -d 's/old text/new text/' docs/README.md
+  gl-sed.sh -p grp/proj -b fix/typo '5321s/ with a Model Co/ge group or proj/' src/big.txt
+  gl-sed.sh -p grp/proj -e '10,20s/foo/bar/g' -e '/^# TODO/d' a.yml b.yml
+
+Tip: scope with an address and a guard in one go, so a shifted line number can't
+hit the wrong line:   '5321{/Model Co/s/ with a Model Co/ge group or proj/}'
+
+Env:
+  GITLAB_TOKEN  Personal/project access token with "api" scope (also read from
+                GITLAB_PRIVATE_TOKEN or GITLAB_ACCESS_TOKEN)           (required)
+  GITLAB_HOST   Host or base URL of a self-managed instance (default: gitlab.com);
+                e.g. gitlab.example.com or http://gitlab.example.com:8080
+Note: the sed dialect is your local sed (BSD on macOS, GNU on Linux).
+EOF
+  exit "${1:-1}"
+}
+
+PROJECT="" BRANCH="" SOURCE="" MSG="" EXT=0 DRY=0 VERBOSE=0 TMO=120
+SCRIPTS=()
+# getopts stops at the first non-option, so keep calling it and collect positionals
+# ourselves; that lets options appear anywhere (e.g. after the script or files).
+POS=()
+while (( OPTIND <= $# )); do
+  if [[ ${!OPTIND} == -- ]]; then
+    POS+=("${@:OPTIND+1}"); break
+  elif getopts "p:b:s:m:e:t:Edvh" opt; then
+    case "$opt" in
+      p) PROJECT=$OPTARG ;;
+      b) BRANCH=$OPTARG ;;
+      s) SOURCE=$OPTARG ;;
+      m) MSG=$OPTARG ;;
+      e) SCRIPTS+=("$OPTARG") ;;
+      E) EXT=1 ;;
+      d) DRY=1 ;;
+      v) VERBOSE=1 ;;
+      t) TMO=$OPTARG ;;
+      h) usage 0 ;;
+      *) usage 1 ;;
+    esac
+  else
+    POS+=("${!OPTIND}"); OPTIND=$((OPTIND + 1))
+  fi
+done
+set -- ${POS[@]+"${POS[@]}"}
+
+if (( ${#SCRIPTS[@]} == 0 )); then
+  (( $# >= 1 )) || usage 1
+  SCRIPTS+=("$1"); shift
+fi
+FILES=("$@")
+[[ -n $PROJECT ]] || { echo "error: -p PROJECT is required" >&2; usage 1; }
+(( ${#FILES[@]} >= 1 )) || { echo "error: no FILE given" >&2; usage 1; }
+
+for cmd in curl jq sed diff; do
+  command -v "$cmd" >/dev/null || { echo "error: missing dependency: $cmd" >&2; exit 1; }
+done
+
+TOKEN=${GITLAB_TOKEN:-${GITLAB_PRIVATE_TOKEN:-${GITLAB_ACCESS_TOKEN:-}}}
+[[ -n $TOKEN ]] || { echo "error: set GITLAB_TOKEN to a GitLab access token (scope: api)" >&2; exit 1; }
+
+HOST=${GITLAB_HOST:-gitlab.com}
+[[ $HOST == http*://* ]] || HOST=https://$HOST
+API="${HOST%/}/api/v4"
+
+echo "Starting GitLab sed operation against $API..."
+
+enc() { jq -rn --arg v "$1" '$v|@uri'; }
+
+T0=$SECONDS
+log() { printf '[%4ss] %s\n' "$((SECONDS - T0))" "$*" >&2; }
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# Keep the token out of `ps` output by passing the header through a curl config file.
+umask 077
+printf 'header = "PRIVATE-TOKEN: %s"\n' "$TOKEN" > "$tmp/curl.cfg"
+
+# api METHOD PATH OUTFILE [DATA_FILE]
+# Performs one request with connect/overall timeouts, logs status/size/time, writes the body
+# to OUTFILE and the response headers to $tmp/headers. Returns 0 only for 2xx; HTTP status
+# is left in $HTTP_CODE (000 = no response, e.g. timeout or DNS/connect failure).
+api() {
+  local method=$1 path=$2 outfile=$3 data=${4:-} rc=0 stats
+  local args=(-sS -K "$tmp/curl.cfg" --connect-timeout 15
+              -D "$tmp/headers" -o "$outfile"
+              -w '%{http_code} %{size_download} %{size_upload} %{time_namelookup} %{time_connect} %{time_appconnect} %{time_starttransfer} %{time_total}')
+  (( TMO > 0 )) && args+=(--max-time "$TMO")
+  if [[ $method == HEAD ]]; then args+=(-I); else args+=(-X "$method"); fi
+  [[ -n $data ]] && args+=(-H "Content-Type: application/json" -H "Expect:" --data-binary "@$data")
+  log "$method $API/$path"
+  stats=$(curl "${args[@]}" "$API/$path" </dev/null 2>"$tmp/curl.err") || rc=$?
+  read -r HTTP_CODE down up t_dns t_conn t_tls t_ttfb t_total <<<"${stats:-000 0 0 0 0 0 0 0}"
+  log "  -> HTTP $HTTP_CODE, down ${down}B, up ${up}B, ${t_total}s total"
+  (( VERBOSE )) && log "     dns ${t_dns}s, connect ${t_conn}s, tls ${t_tls}s, first byte ${t_ttfb}s"
+  if (( rc != 0 )); then
+    log "  !! curl exit $rc: $(cat "$tmp/curl.err")"
+    (( rc == 28 )) && log "  !! timed out after ${TMO}s (raise with -t)"
+    HTTP_CODE=000
+    return 1
+  fi
+  [[ $HTTP_CODE == 2* ]]
+}
+
+# Print the GitLab error message (if any) from a failed response body.
+api_error() {
+  local msg
+  msg=$(jq -r '.message // .error // empty' "$1" 2>/dev/null || true)
+  echo "error: HTTP $HTTP_CODE${msg:+: $msg}" >&2
+}
+
+SED_ARGS=()
+(( EXT )) && SED_ARGS+=(-E)
+for s in "${SCRIPTS[@]}"; do SED_ARGS+=(-e "$s"); done
+
+P=$(enc "$PROJECT")
+BRANCH=${BRANCH:-sed-edit-$(date +%Y%m%d-%H%M%S)}
+B=$(enc "$BRANCH")
+
+# Does the target branch already exist? Only a 404 means "no"; anything else is an error.
+if api GET "projects/$P/repository/branches/$B" "$tmp/resp.json"; then
+  BRANCH_EXISTS=1
+  READ_REF=$BRANCH
+elif [[ $HTTP_CODE == 404 ]]; then
+  BRANCH_EXISTS=0
+  if [[ -z $SOURCE ]]; then
+    api GET "projects/$P" "$tmp/resp.json" || { api_error "$tmp/resp.json"; exit 1; }
+    SOURCE=$(jq -r .default_branch "$tmp/resp.json")
+  fi
+  READ_REF=$SOURCE
+else
+  api_error "$tmp/resp.json"
+  exit 1
+fi
+echo ">> branch '$BRANCH' $([[ $BRANCH_EXISTS -eq 1 ]] && echo "exists" || echo "will be created from '$SOURCE'")" >&2
+REF_ENC=$(enc "$READ_REF")
+
+echo '[]' > "$tmp/actions.json"
+changed=()
+i=0
+for file in "${FILES[@]}"; do
+  i=$((i + 1))
+  FILE_PATH="projects/$P/repository/files/$(enc "$file")"
+  log "[$i/${#FILES[@]}] fetching $file @ $READ_REF"
+  # /raw streams the file as-is: no base64 or JSON wrapping, so it is smaller and faster.
+  api GET "$FILE_PATH/raw?ref=$REF_ENC" "$tmp/orig.$i" \
+    || { api_error "$tmp/orig.$i"; echo "error: couldn't read $file @ $READ_REF" >&2; exit 1; }
+  log "  fetched: $(wc -c <"$tmp/orig.$i") bytes, $(wc -l <"$tmp/orig.$i") lines"
+
+  last_commit=""
+  if (( BRANCH_EXISTS )); then
+    # The files endpoint exposes the last commit id as a header; a HEAD avoids downloading it again.
+    api HEAD "$FILE_PATH?ref=$REF_ENC" /dev/null \
+      || { echo "error: couldn't read metadata for $file @ $READ_REF (HTTP $HTTP_CODE)" >&2; exit 1; }
+    last_commit=$(tr -d '\r' <"$tmp/headers" | awk 'tolower($1)=="x-gitlab-last-commit-id:" {print $2}')
+  fi
+
+  log "  running sed"
+  sed "${SED_ARGS[@]}" "$tmp/orig.$i" > "$tmp/new.$i" \
+    || { echo "error: sed failed on $file" >&2; exit 1; }
+
+  if cmp -s "$tmp/orig.$i" "$tmp/new.$i"; then
+    echo ">> no change: $file" >&2
+    continue
+  fi
+
+  log "  diffing"
+  diff -u --label "a/$file" --label "b/$file" "$tmp/orig.$i" "$tmp/new.$i" || true
+  changed+=("$file")
+
+  # last_commit_id (optimistic lock) only applies when committing onto an existing branch.
+  jq --arg path "$file" --arg last "$last_commit" --argjson exists "$BRANCH_EXISTS" \
+     --rawfile content "$tmp/new.$i" \
+     '. + [ { action: "update", file_path: $path, content: $content }
+            + (if $exists == 1 then { last_commit_id: $last } else {} end) ]' \
+     "$tmp/actions.json" > "$tmp/actions.next" && mv "$tmp/actions.next" "$tmp/actions.json"
+done
+
+if (( ${#changed[@]} == 0 )); then
+  echo ">> nothing to commit" >&2
+  exit 0
+fi
+
+if (( DRY )); then
+  echo ">> dry run, nothing committed" >&2
+  exit 0
+fi
+
+log "building commit payload"
+MSG=${MSG:-sed: ${SCRIPTS[0]} (${changed[*]})}
+
+jq -n \
+  --arg branch "$BRANCH" --arg msg "$MSG" --arg start "${SOURCE:-}" \
+  --argjson exists "$BRANCH_EXISTS" --slurpfile actions "$tmp/actions.json" '
+  { branch: $branch, commit_message: $msg, actions: $actions[0] }
+  + (if $exists == 0 then { start_branch: $start } else {} end)
+' > "$tmp/payload.json"
+
+log "committing ($(wc -c <"$tmp/payload.json") byte payload)"
+api POST "projects/$P/repository/commits" "$tmp/resp.json" "$tmp/payload.json" \
+  || { api_error "$tmp/resp.json"; exit 1; }
+
+echo ">> committed $(jq -r '.short_id' "$tmp/resp.json") on '$BRANCH' (${#changed[@]} file(s))" >&2
+jq -r '.web_url' "$tmp/resp.json"
+if (( BRANCH_EXISTS == 0 )); then
+  echo ">> new branch; open an MR: ${HOST%/}/$PROJECT/-/merge_requests/new?merge_request%5Bsource_branch%5D=$B&merge_request%5Btarget_branch%5D=$(enc "$SOURCE")" >&2
+fi

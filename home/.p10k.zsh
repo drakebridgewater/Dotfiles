@@ -34,7 +34,8 @@
     # =========================[ Line #1 ]=========================
     os_icon                 # os identifier
     dir                     # current directory
-    vcs                     # git status
+    gitcache                # cached git status, never scans (see shell/zsh/p10k-gitcache.zsh)
+    # vcs                   # live git status via gitstatusd (replaced by gitcache)
     # =========================[ Line #2 ]=========================
     newline                 # \n
     prompt_char             # prompt symbol
@@ -508,6 +509,17 @@
   # using them. If you do, your prompt may become slow even when your current directory
   # isn't in an svn or hg repository.
   typeset -g POWERLEVEL9K_VCS_BACKENDS=(git)
+
+  ##################[ gitcache: cached git status, no git on prompt render ]###################
+  # Replaces `vcs`: shows the branch from .git/HEAD plus the counts from the last refresh and
+  # their age ("· 5m ago"). Refreshes in the background only after you run a git command, or
+  # on demand with `gstr`. Don't start gitstatusd since nothing uses it.
+  typeset -g POWERLEVEL9K_DISABLE_GITSTATUS=true
+  typeset -g POWERLEVEL9K_GITCACHE_PREFIX='on '
+  typeset -g POWERLEVEL9K_GITCACHE_CLEAN_BACKGROUND=2
+  typeset -g POWERLEVEL9K_GITCACHE_MODIFIED_BACKGROUND=3
+  typeset -g POWERLEVEL9K_GITCACHE_UNKNOWN_BACKGROUND=8
+  source ${${(%):-%x}:A:h}/../shell/zsh/p10k-gitcache.zsh
 
   ##########################[ status: exit code of the last command ]###########################
   # Enable OK_PIPE, ERROR_PIPE and ERROR_SIGNAL status states to allow us to enable, disable and
